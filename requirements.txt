@@ -8,5 +8,7 @@ pydantic
 python-dotenv
 youtube-transcript-api
 openai
+bcrypt
+passlib
 # to be deleted
 google-generativeai

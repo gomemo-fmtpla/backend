@@ -15,8 +15,8 @@ def generate_summary(transcript: str) -> dict:
             messages=[
                 {
                     "role": "user",
-                     "content": f"""
-                Please provide a detailed markdown summary of the following content:
+                    "content": f"""
+                Please generate a detailed markdown summary of the following content:
 
                 {transcript}
 
@@ -27,7 +27,17 @@ def generate_summary(transcript: str) -> dict:
                 - Code blocks or other markdown features if applicable
                 - A conclusion section
 
-                The output must be well-structured and in markdown format.
+                Additionally, provide:
+                - A single phrase to categorize the content (e.g., 'Tutorial', 'Guide', 'Report', 'General')
+                - An emoji that represents the content category
+
+                The output must be in the following JSON format:
+
+                {{
+                    "content_category": "Category Phrase",
+                    "emoji_representation": "Emoji",
+                    "markdown": "Markdown content here"
+                }}
                 """,
                 }
             ],
@@ -35,16 +45,30 @@ def generate_summary(transcript: str) -> dict:
         )
       
         # Extract the 'content' field
-        content = summary_text.choices[0].message.content
-        print(content)
+        content = summary_text.choices[0].message.content.strip()
+        
+        # Parse the JSON response
+        import json
+        try:
+            parsed_content = json.loads(content)
+            return {
+                "success": True,
+                "data": {
+                    "content_category": parsed_content.get("content_category", ""),
+                    "emoji_representation": parsed_content.get("emoji_representation", ""),
+                    "markdown": parsed_content.get("markdown", "")
+                },
+                "error": None
+            }
+        except json.JSONDecodeError as e:
+            return {
+                "success": False,
+                "error": {
+                    "type": "JSONDecodeError",
+                    "message": f"Failed to decode JSON: {str(e)}"
+                }
+            }
 
-        return {
-            "success": True,
-            "data": {
-                "summary": content
-            },
-            "error": None
-        }
     except Exception as e:
         return {
             "success": False,

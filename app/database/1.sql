@@ -45,7 +45,19 @@ CREATE TABLE
             TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
--- Create indexes
+CREATE TABLE
+    note_metadata (
+        note_id INTEGER PRIMARY KEY REFERENCES notes (id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        content_category VARCHAR(50) NOT NULL,
+        emoji_representation VARCHAR(10) NOT NULL,
+        date_created TIMESTAMP
+        WITH
+            TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE INDEX idx_note_metadata_note_id ON note_metadata (note_id);
+
 CREATE INDEX idx_folders_user_id ON folders (user_id);
 
 CREATE INDEX idx_notes_user_id ON notes (user_id);

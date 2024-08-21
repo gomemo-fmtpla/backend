@@ -54,3 +54,14 @@ class Note(Base):
     
     user = relationship("User", back_populates="notes")
     folder = relationship("Folder", back_populates="notes")
+
+class NoteMetadata(Base):
+    __tablename__ = "note_metadata"
+
+    note_id = Column(Integer, ForeignKey("notes.id"), primary_key=True)
+    title = Column(String(255), nullable=False)
+    content_category = Column(String(50), nullable=False)
+    emoji_representation = Column(String(10), nullable=False)
+    date_created = Column(DateTime(timezone=True), server_default=func.now())
+
+    note = relationship("Note", back_populates="note_metadata")

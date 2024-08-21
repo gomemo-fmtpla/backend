@@ -2,8 +2,6 @@ from app.database.models import User
 from app.database.schemas.user import UserCreate, UserUpdate
 from sqlalchemy.orm import Session
 
-from app.database.db import DatabaseSingleton
-
 def get_user(db: Session, user_id: int):
     return db.query(User).filter(User.id == user_id).first()
 
@@ -33,9 +31,21 @@ def update_user(db: Session, user_id: int, user: UserUpdate):
         db.refresh(db_user)
     return db_user
 
-def delete_user(db: Session, user_id: int):
-    db_user = get_user(db, user_id)
-    if db_user:
-        db.delete(db_user)
-        db.commit()
-    return db_user
+def get_subscription_status(db: Session, user_id: int):
+    user = get_user(db, user_id)
+    if user:
+        return {
+            "subscription_plan": user.subscription_plan,
+            "subscription_end_date": user.subscription_end_date,
+        }
+    else:
+        raise ValueError("User not found")
+
+
+# def delete_user(db: Session, user_id: int):
+#     db_user = get_user(db, user_id)
+#     if db_user:
+#         db.delete(db_user)
+#         db.commit()
+#     return db_user
+

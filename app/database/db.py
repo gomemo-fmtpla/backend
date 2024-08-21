@@ -17,7 +17,16 @@ class DatabaseSingleton:
         if DatabaseSingleton.__instance is not None:
             raise Exception("This class is a singleton!")
         else:
-            self.engine = create_engine(os.getenv("DATABASE_URL", "postgresql://user:password@localhost/mydb"))
+            # Fetch the environment variables
+            db_user = os.getenv("DB_USER", "default_user")
+            db_password = os.getenv("DB_PASSWORD", "default_password")
+            db_host = os.getenv("DB_HOST", "localhost")
+            db_name = os.getenv("DB_NAME", "default_db")
+
+            # Construct the DATABASE_URL
+            database_url = f"postgresql://{db_user}:{db_password}@{db_host}/{db_name}"
+
+            self.engine = create_engine(database_url)
             self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
             self.Base = declarative_base()
             DatabaseSingleton.__instance = self

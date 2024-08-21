@@ -2,10 +2,8 @@ from app.database.models import User
 from app.usecases.auth_guard import auth_guard
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-
-from app.usecases.misc.summary_generation_vertex import generate_summary_vertex
 from app.usecases.generation.summary_generation import generate_summary
-from app.usecases.generation.transcipt_extraction import generate_transcript
+from app.usecases.generation.transcript_extraction import generate_transcript
 
 router = APIRouter(
     prefix="/summary",
@@ -18,17 +16,15 @@ class YouTubeSummaryRequest(BaseModel):
 class AudioSummaryRequest(BaseModel):
     transcript: str
 
+@router.post("/youtube/")
 async def youtube_summary(
-    request: YouTubeSummaryRequest,
-    current_user: User = Depends(auth_guard)
+    request: YouTubeSummaryRequest
 ):
-    user_id = current_user.id
     transcript_response = generate_transcript(request.youtube_url)
     if not transcript_response['success']:
         raise HTTPException(status_code=400, detail=transcript_response['error'])
 
     transcript = transcript_response['data']['transcript']
-    print(transcript)
     summary_response = generate_summary(transcript)
     if not summary_response['success']:
         raise HTTPException(status_code=500, detail=summary_response['error'])
@@ -36,7 +32,10 @@ async def youtube_summary(
     return summary_response
 
 @router.post("/audio/")
-async def audio_summary(request: AudioSummaryRequest):
+async def audio_summary(
+    request: AudioSummaryRequest,
+    current_user: User = Depends(auth_guard)  # Authentication applied
+):
     transcript = request.transcript
     summary_response = generate_summary(transcript)
     if not summary_response['success']:

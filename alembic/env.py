@@ -38,7 +38,7 @@ print(f"DB_HOST: {DB_HOST}")
 print(f"DB_NAME: {DB_NAME}")
 
 # Construct the URL
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}?sslmode=require"
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
 # Update the configuration with the constructed DATABASE_URL
 config = context.config
