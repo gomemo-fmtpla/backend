@@ -1,0 +1,12 @@
+fastapi
+python-dotenv
+uvicorn
+sqlalchemy
+alembic
+psycopg2-binary
+pydantic
+python-dotenv
+youtube-transcript-api
+openai
+# to be deleted
+google-generativeai

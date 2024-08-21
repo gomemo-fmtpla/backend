@@ -1,0 +1,56 @@
+from app.commons.environment_manager import load_env
+from openai import OpenAI
+import os
+import json
+
+load_env()
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
+)
+
+def generate_flashcards(transcript: str) -> dict:
+    """Generate a set of flashcards from the provided transcript using OpenAI."""
+    try:
+        flashcards_text = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"""
+                    Please generate a set of flashcards based on the following content:
+
+                    {transcript}
+
+                    The output should be in JSON format and should include an array of flashcards, where each flashcard has a "question" and an "answer". The structure should be as follows:
+
+                    [
+                        {{"question": "Question 1", "answer": "Answer 1"}},
+                        {{"question": "Question 2", "answer": "Answer 2"}},
+                        ...
+                    ]
+
+                    Do not include any additional text, explanations, or tags. Provide only the JSON array. 
+                    """,
+                }
+            ],
+            model="gpt-4o-mini",
+        )
+      
+        # Extract the 'content' field
+        flashcards_json_str = flashcards_text.choices[0].message.content
+        flashcards = json.loads(flashcards_json_str)
+
+        return {
+            "success": True,
+            "data": {
+                "flashcards": flashcards
+            },
+            "error": None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {
+                "type": "FlashcardGenerationError",
+                "message": str(e)
+            }
+        }
