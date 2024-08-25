@@ -25,6 +25,7 @@ class User(Base):
     
     folders = relationship("Folder", back_populates="user")
     notes = relationship("Note", back_populates="user")
+    note_metadata = relationship("NoteMetadata", back_populates="user")
 
 class Folder(Base):
     __tablename__ = "folders"
@@ -35,13 +36,13 @@ class Folder(Base):
     
     user = relationship("User", back_populates="folders")
     notes = relationship("Note", back_populates="folder")
+    note_metadata = relationship("NoteMetadata", back_populates="folder")
 
 class Note(Base):
     __tablename__ = "notes"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     folder_id = Column(Integer, ForeignKey("folders.id"))
-    # adding youtube link
     youtube_link = Column(String(255), nullable=True)
     title = Column(String(255))
     summary = Column(Text)
@@ -54,14 +55,19 @@ class Note(Base):
     
     user = relationship("User", back_populates="notes")
     folder = relationship("Folder", back_populates="notes")
+    note_metadata = relationship("NoteMetadata", back_populates="note", uselist=False)
 
 class NoteMetadata(Base):
     __tablename__ = "note_metadata"
 
     note_id = Column(Integer, ForeignKey("notes.id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    folder_id = Column(Integer, ForeignKey("folders.id"))
     title = Column(String(255), nullable=False)
     content_category = Column(String(50), nullable=False)
     emoji_representation = Column(String(10), nullable=False)
     date_created = Column(DateTime(timezone=True), server_default=func.now())
 
     note = relationship("Note", back_populates="note_metadata")
+    user = relationship("User", back_populates="note_metadata")
+    folder = relationship("Folder", back_populates="note_metadata")

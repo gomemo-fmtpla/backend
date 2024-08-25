@@ -16,7 +16,7 @@ def generate_summary(transcript: str) -> dict:
                 {
                     "role": "user",
                     "content": f"""
-                Please generate a detailed markdown summary of the following content:
+                Please generate a detailed markdown summary of the following content and use the same languange:
 
                 {transcript}
 
@@ -28,22 +28,27 @@ def generate_summary(transcript: str) -> dict:
                 - A conclusion section
 
                 Additionally, provide:
-                - A single phrase to categorize the content (e.g., 'Tutorial', 'Guide', 'Report', 'General')
+                - A single phrase to categorize the content, e.g. technology, physics, food, animal
                 - An emoji that represents the content category
+                - Provide the languange code of the content using ISO 639 language codes, e.g. eng, fra 
 
                 The output must be in the following JSON format:
 
                 {{
+                    "title" : "Content title here",
                     "content_category": "Category Phrase",
                     "emoji_representation": "Emoji",
+                    "lang": "languange code here",
                     "markdown": "Markdown content here"
                 }}
+
+                The output must be well-structured and in json format (No need to add tag or prefix or anything)
                 """,
                 }
             ],
             model="gpt-4o-mini",
         )
-      
+
         # Extract the 'content' field
         content = summary_text.choices[0].message.content.strip()
         
@@ -51,11 +56,14 @@ def generate_summary(transcript: str) -> dict:
         import json
         try:
             parsed_content = json.loads(content)
+            print(parsed_content)
             return {
                 "success": True,
                 "data": {
+                    "title": parsed_content.get("title"),
                     "content_category": parsed_content.get("content_category", ""),
                     "emoji_representation": parsed_content.get("emoji_representation", ""),
+                    "lang": parsed_content.get("lang", "eng"),
                     "markdown": parsed_content.get("markdown", "")
                 },
                 "error": None

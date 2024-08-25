@@ -14,7 +14,6 @@ class FlashcardRequest(BaseModel):
 
 @router.post("/")
 async def generate_flashcard(request: FlashcardRequest):
-    # check first if it already generated
     yt = request.transcript
     transcript_response = generate_transcript(yt)
     if not transcript_response['success']:

@@ -3,7 +3,7 @@ from app.commons.environment_manager import load_env
 from app.database.models import User
 from app.database.schemas.user import UserCreate, UserUpdate
 from app.database.db import get_db
-from app.database.crud.user import create_user, get_user, update_user, delete_user
+from app.usecases.user.user import create_user, get_user, update_user
 
 load_env()
 

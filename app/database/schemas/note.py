@@ -1,5 +1,6 @@
 # app/database/schemas/note.py
 
+from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
@@ -36,3 +37,13 @@ class NoteInFolderResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+class NoteMetadataCreate(BaseModel):
+    title: str
+    content_category: str
+    emoji_representation: str
+    date_created: datetime
+
+class NoteMetadataUpdate(BaseModel):
+    title: Optional[str] = None
+    date_created: Optional[datetime] = None

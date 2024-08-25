@@ -12,15 +12,12 @@ async def verify_api_key(
 ) -> User:
     """Verify the API key and check if the user exists in the database."""
     
-    # Check if API key is present
     if api_key is None:
         raise HTTPException(status_code=401, detail="API Key is missing")
 
-    # Check if user_id is present
     if user is None:
         raise HTTPException(status_code=401, detail="User ID is missing")
 
-    # Load the expected API key from the environment or configuration
     expected_api_key = os.getenv("API_KEY")
 
     # Verify the API key
