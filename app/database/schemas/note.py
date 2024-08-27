@@ -9,7 +9,7 @@ class NoteBase(BaseModel):
     summary: str
     transcript_text: str
     language: str
-    youtube_link: Optional[str] = None
+    content_url: Optional[str] = None
     flashcards: Optional[Dict[str, Any]] = None
     quizzes: Optional[Dict[str, Any]] = None
 
@@ -21,7 +21,7 @@ class NoteUpdate(BaseModel):
     summary: Optional[str] = None
     transcript_text: Optional[str] = None
     language: Optional[str] = None
-    youtube_link: Optional[str] = None
+    content_url: Optional[str] = None
     flashcards: Optional[Dict[str, Any]] = None
     quizzes: Optional[Dict[str, Any]] = None
 
@@ -31,7 +31,7 @@ class NoteInFolderResponse(BaseModel):
     summary: str
     transcript_text: str
     language: str
-    youtube_link: Optional[str] = None
+    content_url: Optional[str] = None
     flashcards: Optional[Dict[str, Any]] = None
     quizzes: Optional[Dict[str, Any]] = None
 

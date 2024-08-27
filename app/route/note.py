@@ -1,10 +1,12 @@
 # app/api/notes.py
 
 from datetime import datetime
+import json
 import os
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from app.commons.pydantic_to_json import note_to_dict
+from app.commons.pydantic_to_json import metadata_to_dict, note_to_dict
 from app.database.db import get_db
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate, NoteUpdate
 from app.usecases.auth_guard import auth_guard
@@ -28,6 +30,8 @@ from app.usecases.generation.quiz_generation import generate_quizzes  # Assuming
 from app.database.models import User, Note
 from typing import List, Dict, Any, Optional
 
+from app.usecases.storage.audio_store import delete_object, put_object
+
 router = APIRouter(
     prefix="/notes",
     tags=["notes"]
@@ -48,135 +52,170 @@ async def get_note(note_id: int, current_user: User = Depends(auth_guard), db: S
 @router.post("/generate/youtube/")
 async def generate_youtube_summary(
     youtube_url: str,
+    lang: str = "",
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
-    # Generate transcript
-    transcript_response = generate_transcript(youtube_url)
-    if not transcript_response['success']:
-        raise HTTPException(status_code=400, detail=transcript_response['error'])
-    
-    transcript = transcript_response['data']['transcript']
-    
-    # Generate summary
-    summary_response = generate_summary(transcript)
-    if not summary_response['success']:
-        raise HTTPException(status_code=500, detail=summary_response['error'])
-    
-    summary_data = summary_response['data']
-    print(summary_data)
+    async def event_generator():
+        try:
+            # Step 1: Generate transcript
+            yield "data: Generating transcript...\n\n"
+            transcript_response = generate_transcript(youtube_url)
+            if not transcript_response['success']:
+                yield "data: Failed to transcribe the YouTube video\n\n"
+                return
+            transcript = transcript_response['data']['transcript']
 
-    # Create a new note
-    note_create = NoteCreate(
-        title=summary_data['title'],  # Use the title from the summary
-        summary=summary_data['markdown'],
-        transcript_text=transcript,
-        language=summary_data['lang'],
-        youtube_link=youtube_url,
-    )
+            # Step 2: Generate summary
+            yield "data: Generating summary...\n\n"
+            summary_response = generate_summary(transcript, lang)
+            if not summary_response['success']:
+                yield f"data: Failed to generate summary: {summary_response['error']}\n\n"
+                return
+            summary_data = summary_response['data']
 
-    new_note = add_note(
-        db=db,
-        user_id=current_user.id,
-        folder_id=None,  # Or specify a folder_id if needed
-        note_create=note_create
-    )
-    
-    note_dict = note_to_dict(new_note)
-    print(note_dict)
+            # Step 3: Create a new note
+            yield "data: Creating note...\n\n"
+            note_create = NoteCreate(
+                title=summary_data['title'],
+                summary=summary_data['markdown'],
+                transcript_text=transcript,
+                language=summary_data['lang'],
+                content_url=youtube_url,
+            )
+            new_note = add_note(
+                db=db,
+                user_id=current_user.id,
+                folder_id=None,  # Or specify a folder_id if needed
+                note_create=note_create
+            )
 
-    # Create metadata for the new note
-    metadata_create = NoteMetadataCreate(
-        title=summary_data['title'],
-        content_category=summary_data['content_category'],
-        emoji_representation=summary_data['emoji_representation'],
-        date_created=datetime.now()   
-    )
+            # Step 4: Create metadata for the new note
+            yield "data: Creating note metadata...\n\n"
+            metadata_create = NoteMetadataCreate(
+                title=summary_data['title'],
+                content_category=summary_data['content_category'],
+                emoji_representation=summary_data['emoji_representation'],
+                date_created=datetime.now()
+            )
 
-    add_metadata(
-        db=db,
-        note_id=new_note.id,
-        metadata_create=metadata_create
-    )
-    
-    return {
-        "success": True,
-        "data": {
-            "note": note_dict
-        }
-    }
+            note_metadata = add_metadata(
+                db=db,
+                user_id=current_user.id,
+                note_id=new_note.id,
+                metadata_create=metadata_create
+            )
 
-@router.post("/generate/audio/")
-async def generate_audio_summary(
+            # Convert metadata to JSON
+            note_metadata_json = metadata_to_dict(note_metadata)
+
+            # Step 5: Send the metadata as a JSON string
+            yield f"data: {json.dumps(note_metadata_json)}\n\n"
+
+            yield "data: Process completed successfully.\n\n"
+
+        except Exception as e:
+            yield f"data: Process failed: {str(e)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@router.post("/audio/store")
+async def store_audio(
     audio_file: UploadFile = File(...),
     current_user: User = Depends(auth_guard),
-    db: Session = Depends(get_db)
-) :
-    # Save the uploaded file to a temporary location
+):
+    audio_path = f"/tmp/{audio_file.filename}"
     try:
-        audio_path = f"/tmp/{audio_file.filename}"
+        # Save the uploaded file to a temporary location
         with open(audio_path, "wb") as buffer:
             buffer.write(await audio_file.read())
         
-        # Transcribe the audio
-        transcription_response = transcribe_audio(audio_path)
-        if not transcription_response['success']:
-            raise HTTPException(status_code=500, detail=transcription_response['error'])
+        object_url = put_object(audio_file, audio_path)
         
-        transcript = transcription_response['data']['transcript']
-        
-        # Generate summary
-        summary_response = generate_summary(transcript)
-        if not summary_response['success']:
-            raise HTTPException(status_code=500, detail=summary_response['error'])
-        
-        summary_data = summary_response['data']
-        
-        # Create a new note
-        note_create = NoteCreate(
-            title=summary_data['title'],  # Use the title from the summary
-            summary=summary_data['markdown'],
-            transcript_text=transcript,
-            language=summary_data['lang'],
-            youtube_link="",
-        )
-
-        new_note = add_note(
-            db=db,
-            user_id=current_user.id,
-            folder_id=None,  # Or specify a folder_id if needed
-            note_create=note_create
-        )
-
-        note_dict = note_to_dict(new_note)
-        print(note_dict)
+        # Return the URL or any other necessary response
+        return {"success": True, "url": object_url}
     
-        # Create metadata for the new note
-        metadata_create = NoteMetadataCreate(
-            title=summary_data['title'],
-            content_category=summary_data['content_category'],
-            emoji_representation=summary_data['emoji_representation'],
-            date_created=datetime.now()   
-        )
-
-        add_metadata(
-            db=db,
-            user_id=current_user.id,
-            note_id=new_note.id,
-            metadata_create=metadata_create
-        )
-        
-        return {
-            "success": True,
-            "data": {
-                "note": note_dict
-            }
-        }
+    except Exception as e:
+        if 'object_url' in locals():
+            delete_object(object_url)
+        raise HTTPException(status_code=500, detail=str(e))
     
     finally:
-        # Clean up the temporary file
         if os.path.exists(audio_path):
             os.remove(audio_path)
+
+    
+@router.post("/generate/audio/")
+async def generate_audio_summary(
+    audio_url: str,
+    lang: str = "",
+    context: str = "",  
+    current_user: User = Depends(auth_guard),
+    db: Session = Depends(get_db)
+):
+    async def event_generator():
+        try:
+            # Step 2: Transcribe the audio
+            yield "data: Transcribing audio...\n\n"
+            transcription_response = transcribe_audio(audio_url)
+            if not transcription_response['success']:
+                print(transcription_response["error"])
+                yield "data: Failed to transcribe audio\n\n"
+                return
+            transcript = transcription_response['data']['transcript']
+
+            # Step 3: Generate summary
+            yield "data: Generating summary...\n\n"
+            summary_response = generate_summary(transcript, lang, context=context)
+            if not summary_response['success']:
+                yield f"data: Failed to generate summary: {summary_response['error']}\n\n"
+                return
+            summary_data = summary_response['data']
+
+            # Step 5: Create a new note
+            yield "data: Creating note...\n\n"
+            note_create = NoteCreate(
+                title=summary_data['title'],
+                summary=summary_data['markdown'],
+                transcript_text=transcript,
+                language=summary_data['lang'],
+                content_url=audio_url,  # Using the object URL
+            )
+            new_note = add_note(
+                db=db,
+                user_id=current_user.id,
+                folder_id=None,  # Or specify a folder_id if needed
+                note_create=note_create
+            )
+
+            # Step 6: Create metadata for the new note
+            yield "data: Creating note metadata...\n\n"
+            metadata_create = NoteMetadataCreate(
+                title=summary_data['title'],
+                content_category=summary_data['content_category'],
+                emoji_representation=summary_data['emoji_representation'],
+                date_created=datetime.now()
+            )
+            note_metadata = add_metadata(
+                db=db,
+                user_id=current_user.id,
+                note_id=new_note.id,
+                metadata_create=metadata_create
+            )
+
+            # Convert metadata to JSON
+            note_metadata_json = metadata_to_dict(note_metadata)
+
+            # Step 5: Send the metadata as a JSON string
+            yield f"data: {json.dumps(note_metadata_json)}\n\n"
+            yield "data: Process completed successfully.\n\n"
+
+        except Exception as e:
+            yield f"data: Process failed: {str(e)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 
 @router.put("/{note_id}")
 async def update_existing_note(
@@ -250,7 +289,7 @@ async def create_flashcards(
     if note.flashcards :
         return note.flashcards
 
-    flashcard_data = generate_flashcards(note.transcript_text)
+    flashcard_data = generate_flashcards(note.transcript_text, note.language)
     note.flashcards = flashcard_data['data']['flashcards']
     db.commit()
     db.refresh(note)
@@ -269,7 +308,7 @@ async def create_quizzes(
     if note.quizzes :
         return note.quizzes
     
-    quiz_data = generate_quizzes(note.transcript_text)
+    quiz_data = generate_quizzes(note.transcript_text, note.language)
     note.quizzes = quiz_data['data']['quizzes']
     db.commit()
     db.refresh(note)

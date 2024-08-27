@@ -43,7 +43,7 @@ class Note(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     folder_id = Column(Integer, ForeignKey("folders.id"))
-    youtube_link = Column(String(255), nullable=True)
+    content_url = Column(String(1024), nullable=True)
     title = Column(String(255))
     summary = Column(Text)
     transcript_text = Column(Text)

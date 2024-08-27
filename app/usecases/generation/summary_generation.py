@@ -8,7 +8,7 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-def generate_summary(transcript: str) -> dict:
+def generate_summary(transcript: str, languange: str="", context: str = "") -> dict:
     """Generate a summary from the provided transcript using OpenAI."""
     try:
         summary_text = client.chat.completions.create(
@@ -16,9 +16,14 @@ def generate_summary(transcript: str) -> dict:
                 {
                     "role": "user",
                     "content": f"""
-                Please generate a detailed markdown summary of the following content and use the same languange:
+                Please generate a detailed markdown summary of the following content using the languange of {languange} 
+
+                if the languange is empty or not provided, then autodetect the languange.
 
                 {transcript}
+
+                The context of the transcript is context = {context}. If the context is not being provied 
+                then interpret it from the transcript.  
 
                 The summary should include:
                 - A title (using `#` for the main title)
@@ -42,7 +47,8 @@ def generate_summary(transcript: str) -> dict:
                     "markdown": "Markdown content here"
                 }}
 
-                The output must be well-structured and in json format (No need to add tag or prefix or anything)
+                The output must be well-structured and in json format.
+                Just give me the json formatted answer, no need to add tag or prefix or anything.
                 """,
                 }
             ],
@@ -51,12 +57,12 @@ def generate_summary(transcript: str) -> dict:
 
         # Extract the 'content' field
         content = summary_text.choices[0].message.content.strip()
+        print(content)
         
         # Parse the JSON response
         import json
         try:
             parsed_content = json.loads(content)
-            print(parsed_content)
             return {
                 "success": True,
                 "data": {

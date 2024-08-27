@@ -13,3 +13,4 @@ passlib
 # to be deleted
 google-generativeai
 python-multipart
+minio

@@ -8,7 +8,7 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-def generate_quizzes(transcript: str) -> dict:
+def generate_quizzes(transcript: str, languange: str = "") -> dict:
     """Generate a set of quizzes with multiple-choice questions and answer indices from the provided transcript using OpenAI."""
     try:
         quizzes_text = client.chat.completions.create(
@@ -16,7 +16,9 @@ def generate_quizzes(transcript: str) -> dict:
                 {
                     "role": "user",
                     "content": f"""
-                    Please generate a set of quiz questions based on the following content:
+                    Please generate a set of quiz questions based on the following content using the languange of {languange}.
+
+                    if the languange is empty or not provided, then autodetect the languange.
 
                     {transcript}
 

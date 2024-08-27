@@ -8,7 +8,7 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-def generate_flashcards(transcript: str) -> dict:
+def generate_flashcards(transcript: str, languange: str = "") -> dict:
     """Generate a set of flashcards from the provided transcript using OpenAI."""
     try:
         flashcards_text = client.chat.completions.create(
@@ -16,7 +16,9 @@ def generate_flashcards(transcript: str) -> dict:
                 {
                     "role": "user",
                     "content": f"""
-                    Please generate a set of flashcards based on the following content:
+                    Please generate a set of flashcards based on the following content using the languange of {languange}.
+
+                    if the languange is empty or not provided, then autodetect the languange.
 
                     {transcript}
 
