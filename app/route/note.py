@@ -215,8 +215,6 @@ async def generate_audio_summary(
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-
-
 @router.put("/{note_id}")
 async def update_existing_note(
     note_id: int,
@@ -250,31 +248,71 @@ async def translate_note_endpoint(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
-    note = db.query(Note).filter(Note.id == note_id).first()
-    if not note:
-        raise HTTPException(status_code=404, detail="Note not found")
+    async def event_generator():
+        try:
+            note = db.query(Note).filter(Note.id == note_id).first()
+            if not note:
+                yield "data: Failed to get note\n\n"
+                return
     
-    translation = translate_summary(note.transcript_text, target_language)
-    if not translation['success']:
-        raise HTTPException(status_code=500, detail=translation['error'])
+            translation = translate_summary(note.transcript_text, target_language)
+            if not translation['success']:
+                print(translation["error"])
+                yield "data : Failed to translate summary"
+                return
     
-    return {"translated_text": translation['data']['translated_text']}
+            translated_text = translation['data']['translated_text']
+            
+            # Step 3: Generate summary
+            yield "data: Generating summary...\n\n"
+            summary_response = generate_summary(translated_text, target_language)
+            if not summary_response['success']:
+                yield f"data: Failed to generate summary: {summary_response['error']}\n\n"
+                return
+            summary_data = summary_response['data']
 
-# @router.get("/flashcard/{note_id}")
-# async def get_flashcards(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
-#     note = db.query(Note).filter(Note.id == note_id and Note.user_id == current_user.id).first()
-#     if not note:
-#         raise HTTPException(status_code=404, detail="Note not found")
-    
-#     return note.flashcards
+            # Step 5: Create a new note
+            yield "data: Creating note...\n\n"
+            note_create = NoteCreate(
+                title=summary_data['title'],
+                summary=summary_data['markdown'],
+                transcript_text=translated_text,
+                language=summary_data['lang'],
+                content_url=note.content_url,  # Using the object URL
+            )
+            new_note = add_note(
+                db=db,
+                user_id=current_user.id,
+                folder_id=None,  # Or specify a folder_id if needed
+                note_create=note_create
+            )
 
-# @router.get("/quizzes/{note_id}")
-# async def get_quizzes(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
-#     note = db.query(Note).filter(Note.id == note_id and Note.user_id == current_user.id).first()
-#     if not note:
-#         raise HTTPException(status_code=404, detail="Note not found")
-    
-#     return note.quizzes
+            # Step 6: Create metadata for the new note
+            yield "data: Creating note metadata...\n\n"
+            metadata_create = NoteMetadataCreate(
+                title=summary_data['title'],
+                content_category=summary_data['content_category'],
+                emoji_representation=summary_data['emoji_representation'],
+                date_created=datetime.now()
+            )
+            note_metadata = add_metadata(
+                db=db,
+                user_id=current_user.id,
+                note_id=new_note.id,
+                metadata_create=metadata_create
+            )
+
+            # Convert metadata to JSON
+            note_metadata_json = metadata_to_dict(note_metadata)
+
+            # Step 5: Send the metadata as a JSON string
+            yield f"data: {json.dumps(note_metadata_json)}\n\n"
+            yield "data: Process completed successfully.\n\n"
+
+        except Exception as e:
+            yield f"data: Process failed: {str(e)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @router.get("/flashcard/{note_id}")
 async def create_flashcards(

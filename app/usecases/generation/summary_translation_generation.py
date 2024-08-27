@@ -10,31 +10,27 @@ client = OpenAI(
 def translate_summary(summary: str, lang: str) -> dict:
     """Translate a summary from the provided summary using OpenAI."""
     try:
-        # Prepare the prompt for translation
-        prompt = f"""
-        Translate the following summary into {lang}:
-
-        {summary}
-        """
-        
-        # Make a request to the OpenAI API for translation
         translation_response = client.chat.completions.create(
             messages=[
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": f"""
+                        Translate the following transcript into the language of {lang}:
+
+                        {summary}                
+                    """,
                 }
             ],
-            model="gpt-4",  # Use the appropriate GPT-4 model
+            model="gpt-4o-mini",
         )
         
-        # Extract the 'content' field from the response
-        content = translation_response.choices[0].message['content']
-        
+        # Access the 'content' field correctly
+        content = translation_response.choices[0].message.content.strip()
+    
         return {
             "success": True,
             "data": {
-                "translated_summary": content
+                "translated_text": content
             },
             "error": None
         }
