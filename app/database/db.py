@@ -25,8 +25,8 @@ class DatabaseSingleton:
 
             # Construct the DATABASE_URL
             database_url = f"postgresql://{db_user}:{db_password}@{db_host}/{db_name}"
+            self.engine = create_engine(database_url, pool_pre_ping=True, pool_recycle=3600)
 
-            self.engine = create_engine(database_url)
             self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
             self.Base = declarative_base()
             DatabaseSingleton.__instance = self

@@ -41,7 +41,7 @@ def generate_summary(transcript: str, languange: str="", context: str = "") -> d
 
                 {{
                     "title" : "Content title here",
-                    "content_category": "Category Phrase",
+                    "content_category": "Category Phrase (first letter is capital)",
                     "emoji_representation": "Emoji",
                     "lang": "languange code here",
                     "markdown": "Markdown content here"
@@ -58,7 +58,7 @@ def generate_summary(transcript: str, languange: str="", context: str = "") -> d
         # Extract the 'content' field
         content = summary_text.choices[0].message.content.strip()
         print(content)
-        
+
         # Parse the JSON response
         import json
         try:

@@ -2,6 +2,7 @@ import os
 import uuid
 from fastapi import HTTPException
 from minio import Minio, S3Error
+import urllib3
 
 from app.commons.environment_manager import load_env;
 
@@ -34,6 +35,20 @@ def put_object(audio_file, audio_path) -> str:
 
     except S3Error as err:
         raise HTTPException(status_code=500, detail=f"Failed to upload file to MinIO: {str(err)}")
+
+def extract_audio_filename(audio_url: str):
+    # Decode the URL
+    decoded_url = urllib3.parse.unquote(audio_url)
+    
+    # Check if the URL is a YouTube link
+    if "youtube.com" in decoded_url or "youtu.be" in decoded_url:
+        return 
+
+    # Extract the filename from the URL
+    path = urllib3.parse.urlparse(decoded_url).path
+    filename = path.split('/')[-1]
+
+    return filename
 
 
 def delete_object(file_name: str):
