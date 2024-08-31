@@ -13,7 +13,8 @@ def transcribe_audio(audio_url: str) -> dict:
     """Transcribe an audio file using OpenAI, downloading it first to a static temporary file."""
     try:
         print(audio_url)
-       # Send a GET request to the URL
+        
+        # Send a GET request to the URL
         response = requests.get(audio_url, stream=True)
         response.raise_for_status()  # Check for request errors
         
