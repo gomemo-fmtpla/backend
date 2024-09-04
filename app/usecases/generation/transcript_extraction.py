@@ -1,5 +1,6 @@
 # do it from youtube
 # do it from audio record --> can be handled in the client side
+import os
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
 
@@ -28,7 +29,9 @@ def generate_transcript(youtube_url):
 
     try:
         print(video_id)
-        transcript = YouTubeTranscriptApi.get_transcript(video_id=video_id, proxies=)
+        proxy = os.getenv("PROXY_URL")
+        print("using proxy ", proxy)
+        transcript = YouTubeTranscriptApi.get_transcript(video_id=video_id, proxies=proxy)
         transcript_text = "\n".join([entry['text'] for entry in transcript])
         return {
             "success": True,
