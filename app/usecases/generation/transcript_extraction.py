@@ -45,6 +45,7 @@ def generate_transcript(youtube_url):
         }
     except Exception as e:
         try :
+            print("perform failover")
             transcription_response = transcribe_audio(audio_url=youtube_url)
             if not transcription_response['success']:
                 raise Exception(f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n")
@@ -57,7 +58,7 @@ def generate_transcript(youtube_url):
                     "transcript": transcript
                 },
                 "error": None
-        }
+            }
         except Exception as e :
             return {
                 "success": False,
