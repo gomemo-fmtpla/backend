@@ -51,6 +51,8 @@ def transcribe_audio(audio_url: str) -> dict:
         # Clean up in case of an error
         if os.path.exists(temp_audio_file):
             os.remove(temp_audio_file)
+
+        print(e)
         return {
             "success": False,
             "error": {
