@@ -21,6 +21,7 @@ def get_video_id(url):
 def generate_transcript(youtube_url):
     video_id = get_video_id(youtube_url)
     if not video_id:
+        print("URL invalid")
         return {
             "success": False,
             "error": {
@@ -48,6 +49,7 @@ def generate_transcript(youtube_url):
             print("perform failover")
             transcription_response = transcribe_audio(audio_url=youtube_url)
             if not transcription_response['success']:
+                print(e)
                 raise Exception(f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n")
             
             transcript = transcription_response['data']['transcript']
@@ -59,15 +61,13 @@ def generate_transcript(youtube_url):
                 },
                 "error": None
             }
+        
         except Exception as e :
+            print(e)
             return {
                 "success": False,
                 "error": {
                     "type": "Error",
                     "message": str(e)
                 }
-        }
-
-
-def transcript_with_whisper(youtube_url : str) :
-    return 
+            }
