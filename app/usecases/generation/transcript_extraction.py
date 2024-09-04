@@ -1,10 +1,12 @@
 # do it from youtube
 # do it from audio record --> can be handled in the client side
+import json
 import os
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
 
 from app.commons.environment_manager import load_env
+from app.usecases.generation.audio_transcribe_extraction import transcribe_audio
 
 load_env()
 def get_video_id(url):
@@ -42,10 +44,29 @@ def generate_transcript(youtube_url):
             "error": None
         }
     except Exception as e:
-        return {
-            "success": False,
-            "error": {
-                "type": "Error",
-                "message": str(e)
-            }
+        try :
+            transcription_response = transcribe_audio(audio_url=youtube_url)
+            if not transcription_response['success']:
+                raise Exception(f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n")
+            
+            transcript = transcription_response['data']['transcript']
+            return {
+                "success": True,
+                "data": {
+                    "video_id": video_id,
+                    "transcript": transcript
+                },
+                "error": None
         }
+        except Exception as e :
+            return {
+                "success": False,
+                "error": {
+                    "type": "Error",
+                    "message": str(e)
+                }
+        }
+
+
+def transcript_with_whisper(youtube_url : str) :
+    return 
