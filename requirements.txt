@@ -14,3 +14,4 @@ passlib
 google-generativeai
 python-multipart
 minio
+pytube
