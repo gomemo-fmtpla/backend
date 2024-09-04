@@ -135,6 +135,7 @@ async def store_audio(
     except Exception as e:
         if 'object_url' in locals():
             delete_object(object_url)
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
     
     finally:

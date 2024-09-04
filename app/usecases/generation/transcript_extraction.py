@@ -26,6 +26,7 @@ def generate_transcript(youtube_url):
         }
 
     try:
+        print(video_id)
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         transcript_text = "\n".join([entry['text'] for entry in transcript])
         return {
