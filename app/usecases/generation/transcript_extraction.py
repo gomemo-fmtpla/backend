@@ -54,6 +54,7 @@ def generate_transcript(youtube_url):
             print("perform failover")
             transcription_response = transcript_with_whisper(youtube_url=youtube_url)
             if not transcription_response['success']:
+                print(transcription_responsep['error']['message'])
                 raise Exception(f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n")
             
             transcript = transcription_response['data']['transcript']
