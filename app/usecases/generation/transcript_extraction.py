@@ -1,10 +1,11 @@
 # do it from youtube
 # do it from audio record --> can be handled in the client side
-
-# nice to have -> from pdf
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
 
+from app.commons.environment_manager import load_env
+
+load_env()
 def get_video_id(url):
     parsed_url = urlparse(url)
     if parsed_url.hostname == 'youtu.be':
@@ -27,7 +28,7 @@ def generate_transcript(youtube_url):
 
     try:
         print(video_id)
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = YouTubeTranscriptApi.get_transcript(video_id=video_id, proxies=)
         transcript_text = "\n".join([entry['text'] for entry in transcript])
         return {
             "success": True,
