@@ -20,7 +20,7 @@ router = APIRouter(
 
 class AuthUserRequest(BaseModel):
     username: str
-    password: str
+    email: str
 
 class SubscriptionUpdateRequest(BaseModel):
     subscription_plan: str
@@ -37,18 +37,19 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 async def authenticate_or_create_user(
     db: Session, 
     username: str, 
-    password: str
+    email: str
 ):
     user = get_user_by_username(db, username)
     if user:
-        if verify_password(password, user.hashed_password):
-            return user
-        else:
-            raise HTTPException(status_code=401, detail="Incorrect password")
+        return user
+        # if verify_password(password, user.hashed_password):
+        #     return user
+        # else:
+        #     raise HTTPException(status_code=401, detail="Incorrect password")
     else:
         # Hash the password before storing it
-        hashed_password = hash_password(password)
-        new_user = UserCreate(username=username, email=f"{username}@example.com", hashed_password=hashed_password)
+        # hashed_password = hash_password(password)
+        new_user = UserCreate(username=username, email=email)
         return create_user(db, new_user)
 
 
@@ -58,7 +59,7 @@ async def auth_user(
     request: AuthUserRequest, 
     db: Session = Depends(get_db)
 ):
-    user = await authenticate_or_create_user(db, request.username, request.password)
+    user = await authenticate_or_create_user(db, request.username, request.email)
     return {
         "id": user.id,
         "username": user.username,

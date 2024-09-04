@@ -36,19 +36,11 @@ def generate_transcript(youtube_url):
             },
             "error": None
         }
-    except YouTubeTranscriptApi.CouldNotRetrieveTranscript as e:
-        return {
-            "success": False,
-            "error": {
-                "type": "TranscriptUnavailable",
-                "message": "Transcript could not be retrieved. The video might not have subtitles."
-            }
-        }
     except Exception as e:
         return {
             "success": False,
             "error": {
-                "type": "UnknownError",
+                "type": "Error",
                 "message": str(e)
             }
         }

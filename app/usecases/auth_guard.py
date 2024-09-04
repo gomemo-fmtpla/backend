@@ -12,6 +12,8 @@ async def verify_api_key(
 ) -> User:
     """Verify the API key and check if the user exists in the database."""
     
+    print(api_key)
+    print(user)   
     if api_key is None:
         raise HTTPException(status_code=401, detail="API Key is missing")
 
