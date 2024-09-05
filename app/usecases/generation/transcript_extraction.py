@@ -139,6 +139,8 @@ def transcript_with_whisper(youtube_url: str):
         # Clean up in case of an error
         if out_file and os.path.exists(out_file):
             os.remove(out_file)
+
+        print("an error occured")
         return {
             "success": False,
             "error": {
