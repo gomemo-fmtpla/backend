@@ -32,7 +32,7 @@ def get_video_id(url):
         return query_params.get('v', [None])[0]
     return None
 
-def generate_transcript(youtube_url, video_lang="en"):
+def generate_transcript(youtube_url):
     video_id = get_video_id(youtube_url)
     if not video_id:
         return {
@@ -44,7 +44,7 @@ def generate_transcript(youtube_url, video_lang="en"):
         }
 
     try:
-        subtitles = get_srt(youtube_url, lang=video_lang)
+        subtitles = get_srt(youtube_url)
         print(subtitles)
         
         return {
@@ -86,24 +86,11 @@ def generate_transcript(youtube_url, video_lang="en"):
 def transcript_with_whisper(youtube_url: str):
     out_file = None  # Initialize the variable here
     try:
-        # Download the audio from YouTube as an MP3 file
-        print(youtube_url)
-
-        enter_thread = threading.Thread(target=simulate_enter_key)
-        enter_thread.start()
-
-        # The YouTube API call that requires authentication
+        # Download the audio from YouTube as an MP3 file 
         yt = YouTube(youtube_url, on_progress_callback=on_progress, use_oauth=True, allow_oauth_cache=True)
         
-        # Wait for the thread to finish (simulate Enter key)
-        enter_thread.join()
-
-        # If the authentication succeeds, print the video title
         print(f"Video Title: {yt.title}")
-        
-        # yt = YouTube(youtube_url, on_progress_callback = on_progress, use_oauth=True, allow_oauth_cache=True)
-        # print(yt.title)
-        
+         
         ys = yt.streams.get_audio_only()
         
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp:
@@ -189,7 +176,7 @@ def get_srt(url, lang='en'):
 
 def simulate_enter_key():
     # Wait for 10 seconds before sending the Enter key
-    time.sleep(12)
+    time.sleep(10)
     # Sending 'Enter' key to the terminal
     # print("\nSimulating Enter key press...")
     subprocess.run('echo "\n"', shell=True)
