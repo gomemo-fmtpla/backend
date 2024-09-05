@@ -89,10 +89,20 @@ def transcript_with_whisper(youtube_url: str):
         # Download the audio from YouTube as an MP3 file
         print(youtube_url)
 
-        threading.Thread(target=simulate_enter_key).start()
+        enter_thread = threading.Thread(target=simulate_enter_key)
+        enter_thread.start()
+
+        # The YouTube API call that requires authentication
+        yt = YouTube(youtube_url, on_progress_callback=on_progress, use_oauth=True, allow_oauth_cache=True)
         
-        yt = YouTube(youtube_url, on_progress_callback = on_progress, use_oauth=True, allow_oauth_cache=True)
-        print(yt.title)
+        # Wait for the thread to finish (simulate Enter key)
+        enter_thread.join()
+
+        # If the authentication succeeds, print the video title
+        print(f"Video Title: {yt.title}")
+        
+        # yt = YouTube(youtube_url, on_progress_callback = on_progress, use_oauth=True, allow_oauth_cache=True)
+        # print(yt.title)
         
         ys = yt.streams.get_audio_only()
         
