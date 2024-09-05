@@ -85,7 +85,7 @@ def transcript_with_whisper(youtube_url: str):
     try:
         # Download the audio from YouTube as an MP3 file
         print(youtube_url)
-        yt = YouTube(youtube_url, on_progress_callback = on_progress)
+        yt = YouTube(youtube_url, on_progress_callback = on_progress, use_po_token=True)
         print(yt.title)
  
         ys = yt.streams.get_audio_only()
