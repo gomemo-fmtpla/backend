@@ -40,14 +40,14 @@ def generate_summary(transcript: str, languange: str="", context: str = "") -> d
                 The output must be in the following JSON format:
 
                 {{
-                    "title" : "Content title that different from the title markdown (more concise)",
+                    "title" : "Title that different from the title markdown (more concise)",
                     "content_category": "Category Phrase (first letter is capital)",
                     "emoji_representation": "Emoji",
                     "lang": "languange code here",
-                    "markdown": "Markdown content here"
+                    "markdown": "Markdown content here with handled escape character"
                 }}
 
-                The output must be well-structured and in json format.
+                The output must be well-structured and in json format and handle the escape character.
                 Just give me the json formatted answer, no need to add tag or prefix or anything.
                 """,
                 }

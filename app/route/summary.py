@@ -12,6 +12,7 @@ router = APIRouter(
 
 class YouTubeSummaryRequest(BaseModel):
     youtube_url: str
+    video_lang: str
 
 class AudioSummaryRequest(BaseModel):
     transcript: str
@@ -20,7 +21,7 @@ class AudioSummaryRequest(BaseModel):
 async def youtube_summary(
     request: YouTubeSummaryRequest
 ):
-    transcript_response = generate_transcript(request.youtube_url)
+    transcript_response = generate_transcript(request.youtube_url, video_lang=request.video_lang)
     if not transcript_response['success']:
         raise HTTPException(status_code=400, detail=transcript_response['error'])
 

@@ -5,10 +5,15 @@ import os
 from openai import OpenAI
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
-import pytube as pt
+from pytubefix import YouTube
+from pytubefix.captions import Caption
+from pytubefix.cli import on_progress
 from app.commons.environment_manager import load_env
 from app.usecases.generation.audio_transcribe_extraction import transcribe_audio
+import ssl
+import tempfile
 
+ssl._create_default_https_context = ssl._create_stdlib_context
 
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
@@ -24,7 +29,7 @@ def get_video_id(url):
         return query_params.get('v', [None])[0]
     return None
 
-def generate_transcript(youtube_url):
+def generate_transcript(youtube_url, video_lang="en"):
     video_id = get_video_id(youtube_url)
     if not video_id:
         return {
@@ -36,16 +41,14 @@ def generate_transcript(youtube_url):
         }
 
     try:
-        print(video_id)
-        proxy = os.getenv("PROXY_URL")
-        print("using proxy ", proxy)
-        transcript = YouTubeTranscriptApi.get_transcript(video_id=video_id, proxies=proxy)
-        transcript_text = "\n".join([entry['text'] for entry in transcript])
+        subtitles = get_srt(youtube_url, lang=video_lang)
+        print(subtitles)
+        
         return {
             "success": True,
             "data": {
                 "video_id": video_id,
-                "transcript": transcript_text
+                "transcript": subtitles
             },
             "error": None
         }
@@ -54,10 +57,11 @@ def generate_transcript(youtube_url):
             print("perform failover")
             transcription_response = transcript_with_whisper(youtube_url=youtube_url)
             if not transcription_response['success']:
-                print(transcription_responsep['error']['message'])
+                print(transcription_response['error']['message'])
                 raise Exception(f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n")
             
             transcript = transcription_response['data']['transcript']
+            print(transcript)
             return {
                 "success": True,
                 "data": {
@@ -67,6 +71,7 @@ def generate_transcript(youtube_url):
                 "error": None
             }
         except Exception as e :
+            print(e)
             return {
                 "success": False,
                 "error": {
@@ -76,23 +81,35 @@ def generate_transcript(youtube_url):
         }
 
 def transcript_with_whisper(youtube_url: str):
+    out_file = None  # Initialize the variable here
     try:
         # Download the audio from YouTube as an MP3 file
-        yt = pt.YouTube(youtube_url)
-        stream = yt.streams.filter(only_audio=True).first()
-        temp_audio_file = "temp.mp3"
-        stream.download(filename=temp_audio_file)
+        print(youtube_url)
+        yt = YouTube(youtube_url, on_progress_callback = on_progress)
+        print(yt.title)
+ 
+        ys = yt.streams.get_audio_only()
         
-        # Transcribe the audio using Whisper
-        with open(temp_audio_file, "rb") as audio_file:
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp:
+            out_file = temp.name
+
+        ys.download(filename=out_file)
+
+        print(f"Temporary file: {out_file}")
+        
+        # Open the file in binary read mode
+        with open(out_file, "rb") as audio_file:
             transcription = client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file,
                 response_format="text"
             )
-
+        
         # Clean up the temporary file
-        os.remove(temp_audio_file)
+        os.unlink(out_file)
+
+        # # Clean up the temporary file
+        # os.remove(out_file)
 
         return {
             "success": True,
@@ -104,9 +121,8 @@ def transcript_with_whisper(youtube_url: str):
 
     except Exception as e:
         # Clean up in case of an error
-        if os.path.exists(temp_audio_file):
-            os.remove(temp_audio_file)
-            
+        if out_file and os.path.exists(out_file):
+            os.remove(out_file)
         return {
             "success": False,
             "error": {
@@ -114,3 +130,41 @@ def transcript_with_whisper(youtube_url: str):
                 "message": str(e)
             }
         }
+    
+def get_srt(url, lang='en'):
+    video = YouTube(url)
+    captions = video.captions.get(lang)
+
+    # If no captions are found in the desired language, check for ASR captions
+    if not captions:
+        for c in video.captions:
+            params = parse_qs(urlparse(c.url).query)
+            asr_lang = params.get('asr_langs')
+            if asr_lang and lang in asr_lang[0].split(','):
+                captions = Caption({
+                    'baseUrl': f'{c.url}&tlang={lang}',
+                    'languageCode': lang,
+                    'name': {'simpleText': 'ASR'}
+                })
+                break
+
+    # If still no captions, raise an error
+    if not captions:
+        raise KeyError("Captions not found.")
+
+    # Get the SRT captions
+    srt_captions = captions.generate_srt_captions()
+
+    # Parse the SRT format to extract only the text, skipping index and timestamp lines
+    paragraphs = []
+    for line in srt_captions.splitlines():
+        # Ignore lines with index numbers and timestamps
+        if line.isdigit() or "-->" in line:
+            continue
+        if line.strip():  # Add non-empty lines to paragraphs
+            paragraphs.append(line.strip())
+
+    # Join the extracted text lines into a single paragraph
+    full_text = " ".join(paragraphs)
+
+    return full_text
