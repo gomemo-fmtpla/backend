@@ -12,6 +12,9 @@ from app.commons.environment_manager import load_env
 from app.usecases.generation.audio_transcribe_extraction import transcribe_audio
 import ssl
 import tempfile
+import time
+import subprocess
+import threading
 
 ssl._create_default_https_context = ssl._create_stdlib_context
 
@@ -85,6 +88,8 @@ def transcript_with_whisper(youtube_url: str):
     try:
         # Download the audio from YouTube as an MP3 file
         print(youtube_url)
+
+        threading.Thread(target=simulate_enter_key).start()
         
         yt = YouTube(youtube_url, on_progress_callback = on_progress, use_oauth=True, allow_oauth_cache=True)
         print(yt.title)
@@ -169,3 +174,10 @@ def get_srt(url, lang='en'):
     full_text = " ".join(paragraphs)
 
     return full_text
+
+def simulate_enter_key():
+    # Wait for 10 seconds before sending the Enter key
+    time.sleep(12)
+    # Sending 'Enter' key to the terminal
+    # print("\nSimulating Enter key press...")
+    subprocess.run('echo "\n"', shell=True)
