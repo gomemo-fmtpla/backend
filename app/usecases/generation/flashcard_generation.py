@@ -30,13 +30,14 @@ def generate_flashcards(transcript: str, languange: str = "") -> dict:
                         ...
                     ]
 
-                    Do not include any additional text, explanations, or tags. Provide only the JSON array. 
+                    Provide only the JSON array. DO NOT include any additional text, explanations, or tags, event markdown TAG. 
+                    Also handle the excape character. 
                     """,
                 }
             ],
             model="gpt-4o-mini",
         )
-      
+
         # Extract the 'content' field
         flashcards_json_str = flashcards_text.choices[0].message.content
         flashcards = json.loads(flashcards_json_str)

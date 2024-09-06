@@ -52,8 +52,6 @@ def generate_quizzes(transcript: str, languange: str = "") -> dict:
       
         # Extract the 'content' field
         quizzes_json_str = quizzes_text.choices[0].message.content
-        
-        # Convert the JSON string to a Python object (list of dictionaries)
         quizzes = json.loads(quizzes_json_str)
 
         return {

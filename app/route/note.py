@@ -231,8 +231,8 @@ async def delete_note(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
-    note = db.query(Note).filter(Note.id == note_id and current_user.id == Note.id).first()
-    note_metadata = db.query(NoteMetadata).filter(NoteMetadata.note_id == note_id and NoteMetadata.user_id == current_user.id).first()
+    note = db.query(Note).filter(Note.id == note_id, current_user.id == Note.id).first()
+    note_metadata = db.query(NoteMetadata).filter(NoteMetadata.note_id == note_id, NoteMetadata.user_id == current_user.id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     
@@ -327,7 +327,7 @@ async def create_flashcards(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
-    note = db.query(Note).filter(Note.id == note_id and Note.user_id == current_user.id).first()
+    note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     
@@ -335,6 +335,10 @@ async def create_flashcards(
         return note.flashcards
 
     flashcard_data = generate_flashcards(note.transcript_text, note.language)
+    if not flashcard_data['success'] :
+       print(flashcard_data['error'])
+       raise HTTPException(status_code=500, detail="Server fail")
+     
     note.flashcards = flashcard_data['data']['flashcards']
     db.commit()
     db.refresh(note)
@@ -346,7 +350,7 @@ async def create_quizzes(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
-    note = db.query(Note).filter(Note.id == note_id and Note.user_id == current_user.id).first()
+    note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     
@@ -354,6 +358,10 @@ async def create_quizzes(
         return note.quizzes
     
     quiz_data = generate_quizzes(note.transcript_text, note.language)
+    if not quiz_data['success'] :
+       print(quiz_data['error'])
+       raise HTTPException(status_code=500, detail="Server fail")
+     
     note.quizzes = quiz_data['data']['quizzes']
     db.commit()
     db.refresh(note)
