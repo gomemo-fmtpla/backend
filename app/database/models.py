@@ -7,20 +7,15 @@ import enum
 
 Base = declarative_base()
 
-class SubscriptionPlanType(enum.Enum):
-    free = 'free'
-    weekly = 'weekly'
-    monthly = 'monthly'
-    annual = 'annual'
-
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True)
     email = Column(String(100), index=True)
     hashed_password = Column(String(100))
-    subscription_plan = Column(Enum(SubscriptionPlanType), nullable=False, default=SubscriptionPlanType.free)
+    subscription_plan = Column(String, nullable=False, default="trial")
     subscription_end_date = Column(Date)
+    transaction_receipt = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     folders = relationship("Folder", back_populates="user")

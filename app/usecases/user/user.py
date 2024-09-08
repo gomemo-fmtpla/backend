@@ -35,7 +35,7 @@ def get_subscription_status(db: Session, user_id: int):
     if user:
         return {
             "subscription_plan": user.subscription_plan,
-            "subscription_end_date": user.subscription_end_date,
+            "transaction_receipt": user.transaction_receipt,
         }
     else:
         raise ValueError("User not found")

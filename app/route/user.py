@@ -24,7 +24,7 @@ class AuthUserRequest(BaseModel):
 
 class SubscriptionUpdateRequest(BaseModel):
     subscription_plan: str
-    subscription_end_date: str
+    receipt: str
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -71,9 +71,10 @@ async def auth_user(
 # GET /subscription
 @router.get("/subscription/")
 async def get_subscription(
-    current_user: User = Depends(auth_guard)
+    current_user: User = Depends(auth_guard),
+    db: Session = Depends(get_db)
 ):
-    subscription_status = get_subscription_status(current_user)
+    subscription_status = get_subscription_status(db, current_user.id)
     return subscription_status
 
 # POST /subscription
@@ -85,10 +86,10 @@ async def update_subscription(
 ):
     user_update = UserUpdate(
         subscription_plan=request.subscription_plan,
-        subscription_end_date=request.subscription_end_date,
+        transaction_receipt=request.receipt
     )
     updated_user = update_user(db, current_user.id, user_update)
     return {
         "subscription_plan": updated_user.subscription_plan,
-        "subscription_end_date": updated_user.subscription_end_date,
+        "receipt": updated_user.transaction_receipt,
     }
