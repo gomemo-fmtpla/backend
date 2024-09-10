@@ -7,7 +7,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     # hashed_password: str
-    subscription_plan: str 
+    subscription_plan: str | None = None
     subscription_end_date: date = None
 
 class UserUpdate(BaseModel):
