@@ -9,7 +9,7 @@ COPY requirements.txt .
 
 # Install build-essential and Squid, then clean up
 RUN apt-get update && apt-get install -y \
-    apt update && sudo apt install ffmpeg
+    # apt update && sudo apt install ffmpeg \
     build-essential \
     squid \
     && rm -rf /var/lib/apt/lists/* \
