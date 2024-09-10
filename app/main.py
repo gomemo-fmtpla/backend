@@ -4,6 +4,7 @@ import os
 
 from app.route.user import router as user_router
 from app.route.note import router as note_router
+from app.route.summary import router as a
 
 
 load_env()
@@ -11,6 +12,7 @@ app = FastAPI(title=os.getenv("APP_NAME"))
 
 app.include_router(user_router)
 app.include_router(note_router)
+app.include_router(a)
 
 # app.include_router(text_router, prefix="/v1/text", tags=["text"])
 

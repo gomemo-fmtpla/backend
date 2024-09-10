@@ -9,14 +9,14 @@ from pytubefix import YouTube
 from pytubefix.captions import Caption
 from pytubefix.cli import on_progress
 from app.commons.environment_manager import load_env
-from app.usecases.generation.audio_transcribe_extraction import transcribe_audio
 import ssl
 import tempfile
-import time
-import subprocess
-import threading
+import whisper
 
 ssl._create_default_https_context = ssl._create_stdlib_context
+
+# Initialize Whisper model
+model = whisper.load_model("base")  # You can choose other models like 'small', 'medium', 'large'
 
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
@@ -58,7 +58,7 @@ def generate_transcript(youtube_url):
     except Exception as e:
         try :
             print("perform failover")
-            transcription_response = transcript_with_whisper(youtube_url=youtube_url)
+            transcription_response = transcript_with_whisper_local(youtube_url=youtube_url)
             if not transcription_response['success']:
                 print(transcription_response['error']['message'])
                 raise Exception(f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n")
@@ -174,9 +174,59 @@ def get_srt(url, lang='en'):
 
     return full_text
 
-def simulate_enter_key():
-    # Wait for 10 seconds before sending the Enter key
-    time.sleep(10)
-    # Sending 'Enter' key to the terminal
-    # print("\nSimulating Enter key press...")
-    subprocess.run('echo "\n"', shell=True)
+def transcript_with_whisper_local(youtube_url: str):
+    out_file = None
+    try:
+        # Download the audio from YouTube as an MP3 file
+        yt = YouTube(youtube_url, on_progress_callback=on_progress, use_oauth=True, allow_oauth_cache=True)
+        
+        print(f"Video Title: {yt.title}")
+         
+        ys = yt.streams.get_audio_only()
+        
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp:
+            out_file = temp.name
+
+        ys.download(filename=out_file)
+
+        print(f"Temporary file: {out_file}")
+
+        # Load and process audio using Whisper
+        audio = whisper.load_audio(out_file)
+        audio = whisper.pad_or_trim(audio)
+
+        # Make log-Mel spectrogram and move it to the device where the model is loaded
+        mel = whisper.log_mel_spectrogram(audio).to(model.device)
+
+        # Detect the spoken language in the audio
+        _, probs = model.detect_language(mel)
+        print(f"Detected language: {max(probs, key=probs.get)}")
+
+        # Decode the audio using the Whisper model
+        options = whisper.DecodingOptions()
+        result = whisper.decode(model, mel, options)
+
+        # Clean up the temporary file
+        os.unlink(out_file)
+
+        return {
+            "success": True,
+            "data": {
+                "transcript": result.text
+            },
+            "error": None
+        }
+
+    except Exception as e:
+        # Clean up in case of an error
+        if out_file and os.path.exists(out_file):
+            os.remove(out_file)
+
+        print("An error occurred")
+        return {
+            "success": False,
+            "error": {
+                "type": "Error",
+                "message": str(e)
+            }
+        }

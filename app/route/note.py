@@ -11,7 +11,7 @@ from app.commons.pydantic_to_json import metadata_to_dict, note_to_dict
 from app.database.db import get_db
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate, NoteUpdate
 from app.usecases.auth_guard import auth_guard
-from app.usecases.generation.audio_transcribe_extraction import transcribe_audio
+from app.usecases.generation.audio_transcribe_extraction import transcribe_audio, transcribe_audio_local
 from app.usecases.note.note import (
     add_metadata,
     add_note, 
@@ -155,7 +155,7 @@ async def generate_audio_summary(
             # Step 1: Transcribe the audio
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Transcribing audio...'})}\n\n"
             print(audio_url)
-            transcription_response = transcribe_audio(audio_url=audio_url)
+            transcription_response = transcribe_audio_local(audio_url=audio_url)
             if not transcription_response['success']:
                 yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n"
                 return
