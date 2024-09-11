@@ -191,20 +191,22 @@ def transcript_with_whisper_local(youtube_url: str):
 
         print(f"Temporary file: {out_file}")
 
-        # Load and process audio using Whisper
-        audio = whisper.load_audio(out_file)
-        audio = whisper.pad_or_trim(audio)
+        # # Load and process audio using Whisper
+        # full_audio = whisper.load_audio(out_file)
+        # audio = whisper.pad_or_trim(full_audio)
 
-        # Make log-Mel spectrogram and move it to the device where the model is loaded
-        mel = whisper.log_mel_spectrogram(audio).to(model.device)
+        # # Make log-Mel spectrogram and move it to the device where the model is loaded
+        # mel = whisper.log_mel_spectrogram(audio).to(model.device)
 
-        # Detect the spoken language in the audio
-        _, probs = model.detect_language(mel)
-        print(f"Detected language: {max(probs, key=probs.get)}")
+        # # Detect the spoken language in the audio
+        # _, probs = model.detect_language(mel)
+        # lang = max(probs, key=probs.get)
+        # print(f"Detected language: {lang}")
 
         # Decode the audio using the Whisper model
-        options = whisper.DecodingOptions()
-        result = whisper.decode(model, mel, options)
+        # options = whisper.DecodingOptions()
+        # result = whisper.decode(model, mel, options)
+        result = model.transcribe(audio=f"{out_file}")
 
         # Clean up the temporary file
         os.unlink(out_file)
@@ -212,7 +214,7 @@ def transcript_with_whisper_local(youtube_url: str):
         return {
             "success": True,
             "data": {
-                "transcript": result.text
+                "transcript": result['text']
             },
             "error": None
         }

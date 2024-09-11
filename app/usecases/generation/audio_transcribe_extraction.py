@@ -89,17 +89,19 @@ def transcribe_audio_local(audio_url: str) -> dict:
 
         # Print audio information (optional, for debugging)
         print_audio_info(temp_audio_file)
+        
+        result = model.transcribe(audio=f"{temp_audio_file}")
 
-        # Load and process the audio using Whisper
-        audio = whisper.load_audio(temp_audio_file)
-        audio = whisper.pad_or_trim(audio)
+        # # Load and process the audio using Whisper
+        # audio = whisper.load_audio(temp_audio_file)
+        # audio = whisper.pad_or_trim(audio)
 
-        # Make log-Mel spectrogram and move it to the device where the model is loaded
-        mel = whisper.log_mel_spectrogram(audio).to(model.device)
+        # # Make log-Mel spectrogram and move it to the device where the model is loaded
+        # mel = whisper.log_mel_spectrogram(audio).to(model.device)
 
-        # Decode the audio using Whisper's built-in options
-        options = whisper.DecodingOptions()
-        result = whisper.decode(model, mel, options)
+        # # Decode the audio using Whisper's built-in options
+        # options = whisper.DecodingOptions()
+        # result = whisper.decode(model, mel, options)
 
         # Clean up the temporary file after transcription
         os.remove(temp_audio_file)
@@ -107,7 +109,7 @@ def transcribe_audio_local(audio_url: str) -> dict:
         return {
             "success": True,
             "data": {
-                "transcript": result.text
+                "transcript": result['text']
             },
             "error": None
         }

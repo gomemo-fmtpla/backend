@@ -53,29 +53,29 @@ async def testing_audio(request: YouTubeURLRequest):
         raise HTTPException(status_code=500, detail=f"Failed to process the audio: {str(e)}")
  
 
-@router.post("/youtube/")
-async def youtube_summary(
-    request: YouTubeSummaryRequest
-):
-    transcript_response = generate_transcript(request.youtube_url, video_lang=request.video_lang)
-    if not transcript_response['success']:
-        raise HTTPException(status_code=400, detail=transcript_response['error'])
+# @router.post("/youtube/")
+# async def youtube_summary(
+#     request: YouTubeSummaryRequest
+# ):
+#     transcript_response = generate_transcript(request.youtube_url, video_lang=request.video_lang)
+#     if not transcript_response['success']:
+#         raise HTTPException(status_code=400, detail=transcript_response['error'])
 
-    transcript = transcript_response['data']['transcript']
-    summary_response = generate_summary(transcript)
-    if not summary_response['success']:
-        raise HTTPException(status_code=500, detail=summary_response['error'])
+#     transcript = transcript_response['data']['transcript']
+#     summary_response = generate_summary(transcript)
+#     if not summary_response['success']:
+#         raise HTTPException(status_code=500, detail=summary_response['error'])
 
-    return summary_response
+#     return summary_response
 
-@router.post("/audio/")
-async def audio_summary(
-    request: AudioSummaryRequest,
-    current_user: User = Depends(auth_guard)  # Authentication applied
-):
-    transcript = request.transcript
-    summary_response = generate_summary(transcript)
-    if not summary_response['success']:
-        raise HTTPException(status_code=500, detail=summary_response['error'])
+# @router.post("/audio/")
+# async def audio_summary(
+#     request: AudioSummaryRequest,
+#     current_user: User = Depends(auth_guard)  # Authentication applied
+# ):
+#     transcript = request.transcript
+#     summary_response = generate_summary(transcript)
+#     if not summary_response['success']:
+#         raise HTTPException(status_code=500, detail=summary_response['error'])
 
-    return summary_response
+#     return summary_response
