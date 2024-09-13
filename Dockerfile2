@@ -9,21 +9,19 @@ COPY requirements.txt .
 
 # Install build-essential and Squid, then clean up
 RUN apt-get update && apt-get install -y \
-    apt update && sudo apt install ffmpeg \
+    apt update && apt install ffmpeg \
     build-essential \
-    squid \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code into the container
 COPY . .
 
-# Expose both the Squid port (3128) and the application port (8000)
-EXPOSE 3128 8000
+EXPOSE 8000
 
 # Copy Squid configuration file (if needed)
 # You can customize the Squid configuration by copying a local squid.conf file
 # COPY squid.conf /etc/squid/squid.conf
 
 # Start Squid in the background and then start your Python application
-CMD service squid start && uvicorn app.main:app --host 0.0.0.0 --port 3657
+CMD uvicorn app.main:app --host 0.0.0.0 --port 3657
