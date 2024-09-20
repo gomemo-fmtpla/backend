@@ -43,7 +43,8 @@ def generate_quizzes(transcript: str, languange: str = "") -> dict:
                         ...
                     ]
 
-                    Do not include any additional text, explanations, or tags. Provide only the JSON array. 
+                    For the answer, DO NOT! include any additional text, explanations, or tags. 
+                    Provide only the JSON array! 
                     """,
                 }
             ],

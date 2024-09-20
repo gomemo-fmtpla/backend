@@ -7,31 +7,24 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.params import Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from app.commons.pydantic_to_json import metadata_to_dict, note_to_dict
+from app.commons.pydantic_to_json import metadata_to_dict
 from app.database.db import get_db
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate, NoteUpdate
 from app.usecases.auth_guard import auth_guard
-from app.usecases.generation.audio_transcribe_extraction import transcribe_audio, transcribe_audio_local
 from app.usecases.note.note import (
     add_metadata,
     add_note, 
     update_note,
-    get_note_by_id, 
-    move_folder, 
-    remove_folder, 
+    get_note_by_id,  
     get_all_notes,
-    get_unfoldered_notes, 
-    get_notes_by_folder,
 )
 from app.usecases.generation.summary_generation import generate_summary
-from app.usecases.generation.transcript_extraction import generate_transcript
 from app.usecases.generation.summary_translation_generation import translate_summary  # Assuming you have a function for translation
 from app.usecases.generation.flashcard_generation import generate_flashcards  # Assuming a flashcard function
 from app.usecases.generation.quiz_generation import generate_quizzes  # Assuming a quizzes function
 from app.database.models import NoteMetadata, User, Note
-from typing import List, Dict, Any, Optional
 
-from app.usecases.storage.audio_store import delete_object, extract_audio_filename, put_object
+from app.usecases.storage.audio_store import copy_file_from_url, delete_object, extract_audio_filename, put_object
 
 router = APIRouter(
     prefix="/notes",
@@ -353,13 +346,13 @@ async def delete_note(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
-    note = db.query(Note).filter(Note.id == note_id, current_user.id == Note.id).first()
+    note = db.query(Note).filter(Note.id == note_id, current_user.id == Note.user_id).first()
     note_metadata = db.query(NoteMetadata).filter(NoteMetadata.note_id == note_id, NoteMetadata.user_id == current_user.id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     
     file_name = extract_audio_filename(note.content_url)
-    if file_name :
+    if file_name and not note.translated :
         delete_object(file_name=file_name)
 
     db.delete(note_metadata)
@@ -377,11 +370,12 @@ async def translate_note_endpoint(
 ):
     async def event_generator():
         try:
-            # Step 1: Retrieve the note
             note = db.query(Note).filter(Note.id == note_id).first()
             if not note:
                 yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to get note'})}\n\n"
                 return
+            
+            note.translated = True
 
             # Step 2: Translate the note's transcript
             translation = translate_summary(note.transcript_text, target_language)
@@ -394,6 +388,7 @@ async def translate_note_endpoint(
             # Step 3: Generate summary
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating translated summary...'})}\n\n"
             
+            # new_public_url = copy_file_from_url(public_url=note.content_url)
             summary_response = generate_summary(translated_text, target_language)
             if not summary_response['success']:
                 yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
@@ -410,6 +405,7 @@ async def translate_note_endpoint(
                 transcript_text=translated_text,
                 language=summary_data['lang'],
                 content_url=note.content_url,
+                translated=True,
             )
             new_note = add_note(
                 db=db,
@@ -436,6 +432,9 @@ async def translate_note_endpoint(
 
             # Final yield: status "complete" with note_metadata_json as the message
             yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
+
+            db.commit()
+            db.refresh(note)
 
         except Exception as e:
             yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"

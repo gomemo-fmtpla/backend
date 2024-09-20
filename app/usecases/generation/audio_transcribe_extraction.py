@@ -4,12 +4,6 @@ from app.commons.environment_manager import load_env
 from openai import OpenAI
 import os
 import requests
-import whisper
-
-ssl._create_default_https_context = ssl._create_stdlib_context
-
-# Load the Whisper model
-model = whisper.load_model("base")  # You can change "base" to other versions like "small", "medium", etc.
 
 load_env()
 client = OpenAI(
@@ -68,65 +62,65 @@ def transcribe_audio(audio_url: str) -> dict:
             }
         }
 
-def transcribe_audio_local(audio_url: str) -> dict:
-    """Transcribe an audio file using the local Whisper model, downloading it first to a static temporary file."""
-    temp_audio_file = None
-    try:
-        print(f"Downloading audio from URL: {audio_url}")
+# def transcribe_audio_local(audio_url: str) -> dict:
+#     """Transcribe an audio file using the local Whisper model, downloading it first to a static temporary file."""
+#     temp_audio_file = None
+#     try:
+#         print(f"Downloading audio from URL: {audio_url}")
 
-        # Send a GET request to the URL
-        response = requests.get(audio_url, stream=True)
-        response.raise_for_status()  # Check for request errors
+#         # Send a GET request to the URL
+#         response = requests.get(audio_url, stream=True)
+#         response.raise_for_status()  # Check for request errors
 
-        # Extract the filename from the URL
-        temp_audio_file = audio_url.split("/")[-1].split("?")[0]
+#         # Extract the filename from the URL
+#         temp_audio_file = audio_url.split("/")[-1].split("?")[0]
         
-        # Save the file locally
-        with open(temp_audio_file, "wb") as file:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    file.write(chunk)
+#         # Save the file locally
+#         with open(temp_audio_file, "wb") as file:
+#             for chunk in response.iter_content(chunk_size=8192):
+#                 if chunk:
+#                     file.write(chunk)
 
-        # Print audio information (optional, for debugging)
-        print_audio_info(temp_audio_file)
+#         # Print audio information (optional, for debugging)
+#         print_audio_info(temp_audio_file)
         
-        result = model.transcribe(audio=f"{temp_audio_file}")
+#         result = model.transcribe(audio=f"{temp_audio_file}")
 
-        # # Load and process the audio using Whisper
-        # audio = whisper.load_audio(temp_audio_file)
-        # audio = whisper.pad_or_trim(audio)
+#         # # Load and process the audio using Whisper
+#         # audio = whisper.load_audio(temp_audio_file)
+#         # audio = whisper.pad_or_trim(audio)
 
-        # # Make log-Mel spectrogram and move it to the device where the model is loaded
-        # mel = whisper.log_mel_spectrogram(audio).to(model.device)
+#         # # Make log-Mel spectrogram and move it to the device where the model is loaded
+#         # mel = whisper.log_mel_spectrogram(audio).to(model.device)
 
-        # # Decode the audio using Whisper's built-in options
-        # options = whisper.DecodingOptions()
-        # result = whisper.decode(model, mel, options)
+#         # # Decode the audio using Whisper's built-in options
+#         # options = whisper.DecodingOptions()
+#         # result = whisper.decode(model, mel, options)
 
-        # Clean up the temporary file after transcription
-        os.remove(temp_audio_file)
+#         # Clean up the temporary file after transcription
+#         os.remove(temp_audio_file)
 
-        return {
-            "success": True,
-            "data": {
-                "transcript": result['text']
-            },
-            "error": None
-        }
+#         return {
+#             "success": True,
+#             "data": {
+#                 "transcript": result['text']
+#             },
+#             "error": None
+#         }
 
-    except Exception as e:
-        # Clean up in case of an error
-        if temp_audio_file and os.path.exists(temp_audio_file):
-            os.remove(temp_audio_file)
+#     except Exception as e:
+#         # Clean up in case of an error
+#         if temp_audio_file and os.path.exists(temp_audio_file):
+#             os.remove(temp_audio_file)
 
-        print(f"Error when transcribing content: {e}")
-        return {
-            "success": False,
-            "error": {
-                "type": "TranscriptionError",
-                "message": str(e)
-            }
-        }
+#         print(f"Error when transcribing content: {e}")
+#         return {
+#             "success": False,
+#             "error": {
+#                 "type": "TranscriptionError",
+#                 "message": str(e)
+#             }
+#         }
 
 def print_audio_info(file_path: str):
     """Print information about the audio file."""

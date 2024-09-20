@@ -1,6 +1,7 @@
 import os
 import uuid
 from fastapi import HTTPException
+import requests
 from minio import Minio, S3Error
 import urllib.parse
 
@@ -35,6 +36,52 @@ def put_object(audio_file, audio_path) -> str:
 
     except S3Error as err:
         raise HTTPException(status_code=500, detail=f"Failed to upload file to MinIO: {str(err)}")
+
+def copy_file_from_url(public_url: str) -> str:
+    try:
+        # Download the file from the public URL
+        # Check if the URL is a YouTube URL
+        if "youtube.com" in public_url or "youtu.be" in public_url:
+            return public_url
+        
+        response = requests.get(public_url)
+        response.raise_for_status()
+
+        # Extract file name from URL
+        parsed_url = urllib.parse.urlparse(public_url)
+        file_name = os.path.basename(parsed_url.path)
+        file_extension = os.path.splitext(file_name)[1]
+
+        # Generate a unique file ID
+        file_id = str(uuid.uuid4())
+        minio_file_name = f"{file_id}{file_extension}"
+
+        # Save the file locally
+        local_file_path = f"/tmp/{minio_file_name}"
+        with open(local_file_path, 'wb') as file:
+            file.write(response.content)
+
+        # Upload the file to MinIO
+        minio_client.fput_object(
+            BUCKET_NAME,
+            minio_file_name,
+            local_file_path
+        )
+
+        # Generate public URL for the file
+        public_url = minio_client.presigned_get_object(BUCKET_NAME, minio_file_name)
+        print("New public url : ", public_url)
+        return public_url
+
+    except requests.RequestException as req_err:
+        raise HTTPException(status_code=400, detail=f"Failed to download file from URL: {str(req_err)}")
+    except S3Error as s3_err:
+        raise HTTPException(status_code=500, detail=f"Failed to upload file to MinIO: {str(s3_err)}")
+    finally:
+        # Clean up the local file
+        if os.path.exists(local_file_path):
+            os.remove(local_file_path)
+
 
 def extract_audio_filename(audio_url: str):
     # Decode the URL

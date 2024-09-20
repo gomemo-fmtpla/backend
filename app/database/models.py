@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, Text, DateTime, Date, Enum
+from sqlalchemy import Column, ForeignKey, Integer, String, Text, DateTime, Date, Enum, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -43,6 +43,7 @@ class Note(Base):
     summary = Column(Text)
     transcript_text = Column(Text)
     language = Column(String(10))
+    translated = Column(Boolean, nullable=True, default=False)
     flashcards = Column(JSONB, nullable=True, default=None)
     quizzes = Column(JSONB, nullable=True, default=None)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

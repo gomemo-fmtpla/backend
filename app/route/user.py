@@ -6,6 +6,7 @@ from app.database.db import get_db
 from app.database.models import User
 from app.usecases.auth_guard import auth_guard
 from app.database.schemas.user import UserCreate, UserUpdate
+from app.usecases.note.note import create_welcoming_note
 from app.usecases.user.user import (
     get_user_by_username,
     create_user, 
@@ -41,6 +42,7 @@ async def authenticate_or_create_user(
 ):
     user = get_user_by_username(db, username)
     if user:
+        create_welcoming_note(db=db, user_id=user.id) 
         return user
         # if verify_password(password, user.hashed_password):
         #     return user
@@ -50,6 +52,7 @@ async def authenticate_or_create_user(
         # Hash the password before storing it
         # hashed_password = hash_password(password)
         new_user = UserCreate(username=username, email=email)
+        create_welcoming_note(db=db, user_id=user.id)
         return create_user(db, new_user)
 
 

@@ -17,5 +17,4 @@ minio
 pytubefix
 ffmpeg
 setuptools-rust
-openai-whisper
 psutil

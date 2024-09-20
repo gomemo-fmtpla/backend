@@ -9,6 +9,7 @@ class NoteBase(BaseModel):
     summary: str
     transcript_text: str
     language: str
+    translated: bool = False
     content_url: Optional[str] = None
     flashcards: Optional[Dict[str, Any]] = None
     quizzes: Optional[Dict[str, Any]] = None
