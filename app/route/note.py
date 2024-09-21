@@ -169,7 +169,6 @@ async def generate_youtube_summary_2(
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-
 @router.post("/audio/store")
 async def store_audio(
     audio_file: UploadFile = File(...),
@@ -195,7 +194,6 @@ async def store_audio(
     finally:
         if os.path.exists(audio_path):
             os.remove(audio_path)
-
 @router.get("/generate/audio/2/")
 async def generate_audio_summary_2(
     audio_url: str,
@@ -335,7 +333,7 @@ async def update_existing_note(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
-    updated_note = update_note(db, note_id=note_id, note_update=note_update)
+    updated_note = update_note(db, note_id=note_id, note_update=note_update, user_id=current_user.id)
     if not updated_note:
         raise HTTPException(status_code=404, detail="Note not found")
     return updated_note

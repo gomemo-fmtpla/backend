@@ -30,16 +30,21 @@ def add_note(
 def update_note(
     db: Session, 
     note_id: int, 
-    note_update: NoteUpdate
+    note_update: NoteUpdate,
+    user_id : int
 ) -> Optional[Note]:
     try:
-        note = db.query(Note).filter(Note.id == note_id).first()
-        if not note:
+        note = db.query(Note).filter(Note.id == note_id, Note.user_id == user_id).first()
+        note_metadata = db.query(NoteMetadata).filter(NoteMetadata.note_id == note_id, NoteMetadata.user_id == user_id).first()
+        if not note or not note_metadata:
             return None
         for field, value in note_update.dict(exclude_unset=True).items():
+            if field == "title" : 
+                setattr(note_metadata, field, value)
             setattr(note, field, value)
         db.commit()
         db.refresh(note)
+        db.refresh(note_metadata)
         return note
     except SQLAlchemyError as e:
         db.rollback()

@@ -20,11 +20,6 @@ class NoteCreate(NoteBase):
 class NoteUpdate(BaseModel):
     title: Optional[str] = None
     summary: Optional[str] = None
-    transcript_text: Optional[str] = None
-    language: Optional[str] = None
-    content_url: Optional[str] = None
-    flashcards: Optional[Dict[str, Any]] = None
-    quizzes: Optional[Dict[str, Any]] = None
 
 class NoteInFolderResponse(BaseModel):
     id: int
