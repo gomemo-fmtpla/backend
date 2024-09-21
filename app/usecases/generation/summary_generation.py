@@ -12,52 +12,67 @@ def generate_summary(transcript: str, language: str="", context: str = "") -> di
     """Generate a summary from the provided transcript using OpenAI."""
     try:
         summary_text = client.chat.completions.create(
+            model="gpt-4o-mini",
             messages=[
+                {
+                    "role": "system",
+                    "content": f"Please generate a detailed markdown summary of the following content using the language of {language}. If the language is empty or not provided, then autodetect the language."
+                },
                 {
                     "role": "user",
                     "content": f"""
-                Please generate a detailed markdown summary of the following content using the language of {language} 
+                        {transcript}
 
-                if the language is empty or not provided, then autodetect the language.
+                        The context of the transcript is context = {context}. If the context is not provided, then interpret it from the transcript.
 
-                {transcript}
+                        Please generate a detailed markdown summary that includes:
+                        - A title (using `#` for the main title)
+                        - Subheadings (using `##` for subtitles)
+                        - Bullet points for key points
+                        - Code blocks or other markdown features if applicable
+                        - A conclusion section
 
-                The context of the transcript is context = {context}. If the context is not being provied 
-                then interpret it from the transcript.  
+                        Additionally, provide:
+                        - A single phrase to categorize the content, e.g., technology, physics, food, animal
+                        - An emoji that represents the content category
+                        - Provide the language code of the content using ISO 639 language codes, e.g., eng, fra.
 
-                The summary should include:
-                - A title (using `#` for the main title)
-                - Subheadings (using `##` for subtitles)
-                - Bullet points for key points
-                - Code blocks or other markdown features if applicable
-                - A conclusion section
+                        The output must be in the following JSON format:
 
-                Additionally, provide:
-                - A single phrase to categorize the content, e.g. technology, physics, food, animal
-                - An emoji that represents the content category
-                - Provide the language code of the content using ISO 639 language codes, e.g. eng, fra 
+                        {{
+                            "title" : "A concise title separate from the markdown title",
+                            "content_category": "Category Phrase (capitalize the first letter)",
+                            "emoji_representation": "Emoji",
+                            "lang": "language code here",
+                            "markdown": "Markdown content with properly escaped characters"
+                        }}
 
-                The output must be in the following JSON format:
-
-                {{
-                    "title" : "Title that different from the title markdown (more concise)",
-                    "content_category": "Category Phrase (first letter is capital)",
-                    "emoji_representation": "Emoji",
-                    "lang": "language code here",
-                    "markdown": "Markdown content here with handled escape character"
-                }}
-
-                The output must be well-structured and in json format and handle the escape character.
-                Just give me the json formatted answer, no need to add tag or prefix or anything.
-                """,
+                        The output must be well-structured, JSON formatted, and handle escape characters. Only return the JSON object, no additional tags or prefixes.
+                    """
                 }
             ],
-            model="gpt-4o-mini",
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "summary_generation",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "content_category": {"type": "string"},
+                            "emoji_representation": {"type": "string"},
+                            "lang": {"type": "string"},
+                            "markdown": {"type": "string"}
+                        },
+                        "required": ["title", "content_category", "emoji_representation", "lang", "markdown"],
+                        "additionalProperties": False
+                    },
+                    "strict": True
+                }
+            }
         )
-
         # Extract the 'content' field
         content = summary_text.choices[0].message.content.strip()
-        print(content)
 
         # Parse the JSON response
         import json
