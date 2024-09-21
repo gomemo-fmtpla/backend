@@ -8,7 +8,7 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-def generate_summary(transcript: str, languange: str="", context: str = "") -> dict:
+def generate_summary(transcript: str, language: str="", context: str = "") -> dict:
     """Generate a summary from the provided transcript using OpenAI."""
     try:
         summary_text = client.chat.completions.create(
@@ -16,9 +16,9 @@ def generate_summary(transcript: str, languange: str="", context: str = "") -> d
                 {
                     "role": "user",
                     "content": f"""
-                Please generate a detailed markdown summary of the following content using the languange of {languange} 
+                Please generate a detailed markdown summary of the following content using the language of {language} 
 
-                if the languange is empty or not provided, then autodetect the languange.
+                if the language is empty or not provided, then autodetect the language.
 
                 {transcript}
 
@@ -35,7 +35,7 @@ def generate_summary(transcript: str, languange: str="", context: str = "") -> d
                 Additionally, provide:
                 - A single phrase to categorize the content, e.g. technology, physics, food, animal
                 - An emoji that represents the content category
-                - Provide the languange code of the content using ISO 639 language codes, e.g. eng, fra 
+                - Provide the language code of the content using ISO 639 language codes, e.g. eng, fra 
 
                 The output must be in the following JSON format:
 
@@ -43,7 +43,7 @@ def generate_summary(transcript: str, languange: str="", context: str = "") -> d
                     "title" : "Title that different from the title markdown (more concise)",
                     "content_category": "Category Phrase (first letter is capital)",
                     "emoji_representation": "Emoji",
-                    "lang": "languange code here",
+                    "lang": "language code here",
                     "markdown": "Markdown content here with handled escape character"
                 }}
 

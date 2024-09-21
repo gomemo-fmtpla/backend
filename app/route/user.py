@@ -42,7 +42,6 @@ async def authenticate_or_create_user(
 ):
     user = get_user_by_username(db, username)
     if user:
-        create_welcoming_note(db=db, user_id=user.id) 
         return user
         # if verify_password(password, user.hashed_password):
         #     return user

@@ -8,36 +8,48 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-def generate_flashcards(transcript: str, languange: str = "") -> dict:
+def generate_flashcards(transcript: str, language: str = "") -> dict:
     """Generate a set of flashcards from the provided transcript using OpenAI."""
     try:
         flashcards_text = client.chat.completions.create(
+            model="gpt-4o-mini",
             messages=[
                 {
+                    "role": "system",
+                    "content": f"Please generate a set of flashcards based on the following content using the language of {language}. If the language is empty or not provided, then autodetect the language."
+                },
+                {
                     "role": "user",
-                    "content": f"""
-                    Please generate a set of flashcards based on the following content using the languange of {languange}.
-
-                    if the languange is empty or not provided, then autodetect the languange.
-
-                    {transcript}
-
-                    The output should be in JSON format and should include an array of flashcards, where each flashcard has a "question" and an "answer". The structure should be as follows:
-
-                    [
-                        {{"question": "Question 1", "answer": "Answer 1"}},
-                        {{"question": "Question 2", "answer": "Answer 2"}},
-                        ...
-                    ]
-
-                    Provide only the JSON array. DO NOT include any additional text, explanations, or tags, event markdown TAG. 
-                    Also handle the excape character. 
-                    """,
+                    "content": transcript
                 }
             ],
-            model="gpt-4o-mini",
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "flashcard_generation",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "flashcards": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "question": {"type": "string"},
+                                        "answer": {"type": "string"}
+                                    },
+                                    "required": ["question", "answer"],
+                                    "additionalProperties": False
+                                }
+                            }
+                        },
+                        "required": ["flashcards"],
+                        "additionalProperties": False
+                    },
+                    "strict": True
+                }
+            }
         )
-
         # Extract the 'content' field
         flashcards_json_str = flashcards_text.choices[0].message.content
         flashcards = json.loads(flashcards_json_str)
@@ -45,7 +57,7 @@ def generate_flashcards(transcript: str, languange: str = "") -> dict:
         return {
             "success": True,
             "data": {
-                "flashcards": flashcards
+                "flashcards": flashcards["flashcards"]
             },
             "error": None
         }
