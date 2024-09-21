@@ -50,9 +50,10 @@ async def authenticate_or_create_user(
     else:
         # Hash the password before storing it
         # hashed_password = hash_password(password)
-        new_user = UserCreate(username=username, email=email)
-        create_welcoming_note(db=db, user_id=user.id)
-        return create_user(db, new_user)
+        user_create = UserCreate(username=username, email=email)
+        new_user = create_user(db, user_create)
+        create_welcoming_note(db=db, user_id=new_user.id)
+        return new_user
 
 
 # POST /auth_user
