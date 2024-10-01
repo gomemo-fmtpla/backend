@@ -56,6 +56,14 @@ CREATE TABLE
             TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
+CREATE TABLE
+    audio_files (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL,
+        public_url TEXT NOT NULL,
+        uploaded_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE INDEX idx_note_metadata_note_id ON note_metadata (note_id);
 
 CREATE INDEX idx_folders_user_id ON folders (user_id);
