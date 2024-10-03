@@ -1,106 +1,96 @@
-import os
-import requests
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
-from pydantic import BaseModel
+from app.commons.environment_manager import load_env
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, APIRouter
 from supabase import create_client, Client
-import asyncpg
+from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData
+from sqlalchemy.orm import sessionmaker
 import uuid
+import os
 
 router = APIRouter(
     prefix="/audio",
     tags=["audio"],
 )
 
-# Initialize Supabase client
-SUPABASE_URL = "http://49.12.195.35:8000/"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE"
-SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q"
-supabase: Client = create_client(SUPABASE_URL, SERVICE_ROLE_KEY)
+# Initialize Supabase client to None
+supabase: Client = None
+
+# Function to initialize Supabase client if not already initialized
+def get_supabase_client():
+    global supabase
+    if supabase is None:
+        SUPABASE_URL = "http://49.12.195.35:8000/"
+        SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE"
+        SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q"
+        supabase = create_client(SUPABASE_URL, SERVICE_ROLE_KEY)
+    return supabase
 
 # PostgreSQL connection
 DATABASE_URL = "postgresql://postgres:c42f68c2db2a5335a5db@49.12.195.35:3656/gomemo"
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+metadata = MetaData()
 
-# Initialize the PostgreSQL connection pool
-async def get_pg_conn():
-    return await asyncpg.connect(DATABASE_URL)
+# Define the table
+audio_files = Table(
+    'audio_files', metadata,
+    Column('id', Integer, primary_key=True, index=True),
+    Column('user_id', Integer, index=True),
+    Column('file_url', String, index=True)
+)
 
-# Anonymous login function for guest users
-def guest_login():
-    url = f"{SUPABASE_URL}/auth/v1/token?grant_type=anonymous"
-    headers = {
-        "apikey": SERVICE_ROLE_KEY,
-        "Content-Type": "application/json"
-    }
+metadata.create_all(bind=engine)
 
-    response = requests.post(url, headers=headers)
-    print(f"Guest login response status: {response.status_code}")
-    print(f"Guest login response headers: {response.headers}")
-    print(f"Guest login response body: {response.text}")
-
-    if response.status_code == 200:
-        token = response.json().get('access_token')
-        return token
-    else:
-        try:
-            error_message = response.json().get('error', 'Unknown error')
-        except ValueError:
-            error_message = response.text
-        raise HTTPException(status_code=500, detail=f"Guest login failed: {error_message}")
-
-class AudioResponse(BaseModel):
-    message: str
-    public_url: str
-
-async def save_to_db(user_id: int, public_url: str, conn):
-    query = """
-    INSERT INTO audio_files (user_id, public_url) 
-    VALUES ($1, $2)
-    RETURNING id;
-    """
+@router.post("/upload/")
+async def upload_audio_file(user_id: int = Form(...), file: UploadFile = File(...)):
     try:
-        record_id = await conn.fetchval(query, user_id, public_url)
-        return record_id
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        # Ensure Supabase client is initialized
+        supabase_client = get_supabase_client()
+        
+        # Create a new bucket if it doesn't exist
+        bucket_name = "audio-files"
+        existing_buckets = supabase_client.storage.list_buckets()
+        if not any(bucket.name == bucket_name for bucket in existing_buckets):
+            supabase_client.storage.create_bucket(bucket_name)
 
-@router.post("/", response_model=AudioResponse)
-async def uploadAudioFile(file: UploadFile = File(...), user_id: int = 1, conn=Depends(get_pg_conn)):
-    try:
-        # Anonymous guest login
-        access_token = guest_login()
-        supabase.auth.set_auth(access_token)
+        # Rename the file before upload
+        file_extension = os.path.splitext(file.filename)[1]
+        new_file_name = f"{uuid.uuid4()}{file_extension}"
 
-        # Rename the file
-        unique_filename = f"{uuid.uuid4()}.mp3"
+        # Upload the file to the bucket
         file_content = await file.read()
-
-        # Upload the file to the Supabase bucket
-        try:
-            supabase.storage.from_('audio_files_bucket').upload(f"audios/{unique_filename}", file_content)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+        supabase_client.storage.from_(bucket_name).upload(new_file_name, file_content)
 
         # Get the public URL of the uploaded file
-        public_url = supabase.storage.from_('audio_files_bucket').get_public_url(f"audios/{unique_filename}")
+        public_url = supabase_client.storage.from_(bucket_name).get_public_url(new_file_name)
 
-        # Save the public URL in the PostgreSQL database
-        await save_to_db(user_id, public_url, conn)
+        # Save the public URL and user_id into the PostgreSQL database
+        db = SessionLocal()
+        new_audio_file = {
+            "user_id": user_id,
+            "file_url": public_url
+        }
+        db.execute(audio_files.insert().values(new_audio_file))
+        db.commit()
+        db.close()
 
-        return AudioResponse(message="File uploaded successfully", public_url=public_url)
+        return {"status": "success", "file_url": public_url}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
 
 @router.get("/health")
 async def health():
     return {"status": "healthy"}
 
 @router.get("/supabase-health")
-async def supabase_health():
+async def supabase_health():    
     try:
+        # Ensure Supabase client is initialized
+        supabase_client = get_supabase_client()
+        
         # Test a simple request to Supabase, for example, list all buckets
-        buckets = supabase.storage.list_buckets()
-        return {"status": "connected", "buckets": buckets}
+        buckets = supabase_client.storage.list_buckets()
+        return {"status": "connected", "buckets": [bucket.name for bucket in buckets]}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Supabase connection failed: {str(e)}")

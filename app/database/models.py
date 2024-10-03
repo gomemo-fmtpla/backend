@@ -67,3 +67,11 @@ class NoteMetadata(Base):
     note = relationship("Note", back_populates="note_metadata")
     user = relationship("User", back_populates="note_metadata")
     folder = relationship("Folder", back_populates="note_metadata")
+    
+class AudioFile(Base):
+    __tablename__ = "audio_files"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    file_url = Column(String(255), nullable=False)
+
+    user = relationship("User", back_populates="note_metadata")

@@ -59,9 +59,8 @@ CREATE TABLE
 CREATE TABLE
     audio_files (
         id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL,
-        public_url TEXT NOT NULL,
-        uploaded_at TIMESTAMP DEFAULT NOW()
+        user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        file_url VARCHAR(255) NOT NULL,
 );
 
 CREATE INDEX idx_note_metadata_note_id ON note_metadata (note_id);
