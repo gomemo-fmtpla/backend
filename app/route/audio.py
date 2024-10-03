@@ -12,7 +12,7 @@ router = APIRouter(
 )
 
 # Initialize Supabase client
-SUPABASE_URL = "https://udhuchwbcctjfqxrkfip.supabase.co/"
+SUPABASE_URL = "http://49.12.195.35:8000/"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE"
 SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q"
 supabase: Client = create_client(SUPABASE_URL, SERVICE_ROLE_KEY)
@@ -31,12 +31,12 @@ def guest_login():
         "apikey": SERVICE_ROLE_KEY,
         "Content-Type": "application/json"
     }
-    
+
     response = requests.post(url, headers=headers)
     print(f"Guest login response status: {response.status_code}")
     print(f"Guest login response headers: {response.headers}")
     print(f"Guest login response body: {response.text}")
-    
+
     if response.status_code == 200:
         token = response.json().get('access_token')
         return token
@@ -69,31 +69,38 @@ async def uploadAudioFile(file: UploadFile = File(...), user_id: int = 1, conn=D
         # Anonymous guest login
         access_token = guest_login()
         supabase.auth.set_auth(access_token)
-        
+
         # Rename the file
         unique_filename = f"{uuid.uuid4()}.mp3"
         file_content = await file.read()
 
         # Upload the file to the Supabase bucket
-        response = supabase.storage.from_('audio_files_bucket').upload(f"audios/{unique_filename}", file_content)
-        
-        if response['error']:
-            raise HTTPException(status_code=500, detail="File upload failed")
-        
+        try:
+            supabase.storage.from_('audio_files_bucket').upload(f"audios/{unique_filename}", file_content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+
         # Get the public URL of the uploaded file
         public_url = supabase.storage.from_('audio_files_bucket').get_public_url(f"audios/{unique_filename}")
-      
+
         # Save the public URL in the PostgreSQL database
         await save_to_db(user_id, public_url, conn)
-
-        # processBackgroundTaskAudio(file_path)
-        # TODO: ...
 
         return AudioResponse(message="File uploaded successfully", public_url=public_url)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @router.get("/health")
 async def health():
     return {"status": "healthy"}
+
+@router.get("/supabase-health")
+async def supabase_health():
+    try:
+        # Test a simple request to Supabase, for example, list all buckets
+        buckets = supabase.storage.list_buckets()
+        return {"status": "connected", "buckets": buckets}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Supabase connection failed: {str(e)}")
