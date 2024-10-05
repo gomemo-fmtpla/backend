@@ -110,7 +110,7 @@ async def generate_youtube_summary(
         except Exception as e:
             yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
 
-    return StreamingResponse(event_generator(), media_type="application/json")
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @router.get("/generate/youtube/2/")
 async def generate_youtube_summary_2(
