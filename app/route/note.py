@@ -18,8 +18,8 @@ from app.usecases.note.note import (
     get_note_by_id,  
     get_all_notes,
 )
-from app.usecases.generation.transcript_extraction import generate_transcript
-from app.usecases.generation.audio_transcribe_extraction import transcribe_audio_local
+from app.usecases.generation.youtube_transcript_extraction import generate_transcript, generate_youtube_transcript
+from app.usecases.generation.audio_transcribe_extraction import transcribe_audio, transcribe_audio_whisper_openai
 from app.usecases.generation.summary_generation import generate_summary
 from app.usecases.generation.summary_translation_generation import translate_summary  # Assuming you have a function for translation
 from app.usecases.generation.flashcard_generation import generate_flashcards  # Assuming a flashcard function
@@ -83,65 +83,7 @@ async def generate_youtube_summary(
                 language=summary_data['lang'],
                 content_url=youtube_url,
             )
-            new_note = add_note(
-                db=db,
-                user_id=current_user.id,
-                folder_id=None,  # Or specify a folder_id if needed
-                note_create=note_create
-            )
-
-            metadata_create = NoteMetadataCreate(
-                title=summary_data['title'],
-                content_category=summary_data['content_category'],
-                emoji_representation=summary_data['emoji_representation'],
-                date_created=datetime.now()
-            )
-
-            note_metadata = add_metadata(
-                db=db,
-                user_id=current_user.id,
-                note_id=new_note.id,
-                metadata_create=metadata_create
-            )
-
-            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
-
-            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
-
-        except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-@router.get("/generate/youtube/2/")
-async def generate_youtube_summary_2(
-    youtube_url: str,
-    transcript: str,
-    lang: str = "",
-    current_user: User = Depends(auth_guard),
-    db: Session = Depends(get_db)
-):
-    async def event_generator():
-        try:
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
-
-            summary_response = generate_summary(transcript, lang)
-            if not summary_response['success']:
-                print(summary_response["error"])
-                yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
-                return
-
-            summary_data = summary_response['data']
-
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
-
-            note_create = NoteCreate(
-                title=summary_data['title'],
-                summary=summary_data['markdown'],
-                transcript_text=transcript,
-                language=summary_data['lang'],
-                content_url=youtube_url,
-            )
+            
             new_note = add_note(
                 db=db,
                 user_id=current_user.id,
@@ -198,67 +140,6 @@ async def store_audio(
         if os.path.exists(audio_path):
             os.remove(audio_path)
             
-@router.get("/generate/audio/2/")
-async def generate_audio_summary_2(
-    audio_url: str,
-    transcript: str,
-    lang: str = "",
-    context: str = "",  
-    current_user: User = Depends(auth_guard),
-    db: Session = Depends(get_db)
-):
-    async def event_generator():
-        try:
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
-            
-            summary_response = generate_summary(transcript, lang, context=context)
-            if not summary_response['success']:
-                yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
-                return
-            
-            summary_data = summary_response['data']
-
-            # Step 3: Create a new note
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
-            
-            note_create = NoteCreate(
-                title=summary_data['title'],
-                summary=summary_data['markdown'],
-                transcript_text=transcript,
-                language=summary_data['lang'],
-                content_url=audio_url,
-            )
-            new_note = add_note(
-                db=db,
-                user_id=current_user.id,
-                folder_id=None,
-                note_create=note_create
-            )
-
-            metadata_create = NoteMetadataCreate(
-                title=summary_data['title'],
-                content_category=summary_data['content_category'],
-                emoji_representation=summary_data['emoji_representation'],
-                date_created=datetime.now()
-            )
-            note_metadata = add_metadata(
-                db=db,
-                user_id=current_user.id,
-                note_id=new_note.id,
-                metadata_create=metadata_create
-            )
-
-            # Convert metadata to JSON
-            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
-
-            # Final status with the note metadata JSON
-            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
-
-        except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': 'Process failed'})}\n\n"
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
 @router.get("/generate/audio")
 async def generate_audio_summary(
     audio_url: str,
@@ -271,9 +152,10 @@ async def generate_audio_summary(
         try:
             # Step 1: Transcribe the audio
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Transcribing audio...'})}\n\n"
-            print(audio_url)
-            transcription_response = transcribe_audio_local(audio_url=audio_url)
+            
+            transcription_response = transcribe_audio(audio_url=audio_url)
             if not transcription_response['success']:
+                print(transcription_response["error"])
                 yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n"
                 return
             
@@ -488,3 +370,144 @@ async def create_quizzes(
     db.commit()
     db.refresh(note)
     return note.quizzes
+
+@router.get("/generate/youtube/2/")
+async def generate_youtube_summary_2(
+    youtube_url: str,
+    transcript: str,
+    lang: str = "",
+    current_user: User = Depends(auth_guard),
+    db: Session = Depends(get_db)
+):
+    async def event_generator():
+        try:
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Transcribing audio...'})}\n\n"
+            
+            transcription_response = generate_youtube_transcript(youtube_url=youtube_url)
+            if not transcription_response['success']:
+                print(transcription_response["error"])
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n"
+                return
+            
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+            
+            transcript = transcription_response["data"]["transcript"]
+        
+            summary_response = generate_summary(transcript, lang)
+            if not summary_response['success']:
+                print(summary_response["error"])
+                yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
+                return
+
+            summary_data = summary_response['data']
+
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
+
+            note_create = NoteCreate(
+                title=summary_data['title'],
+                summary=summary_data['markdown'],
+                transcript_text=transcript,
+                language=summary_data['lang'],
+                content_url=youtube_url,
+            )
+            new_note = add_note(
+                db=db,
+                user_id=current_user.id,
+                folder_id=None,  # Or specify a folder_id if needed
+                note_create=note_create
+            )
+
+            metadata_create = NoteMetadataCreate(
+                title=summary_data['title'],
+                content_category=summary_data['content_category'],
+                emoji_representation=summary_data['emoji_representation'],
+                date_created=datetime.now()
+            )
+
+            note_metadata = add_metadata(
+                db=db,
+                user_id=current_user.id,
+                note_id=new_note.id,
+                metadata_create=metadata_create
+            )
+
+            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
+
+            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@router.get("/generate/audio/2/")
+async def generate_audio_summary_2(
+    audio_url: str,
+    transcript: str,
+    lang: str = "",
+    context: str = "",  
+    current_user: User = Depends(auth_guard),
+    db: Session = Depends(get_db)
+):
+    async def event_generator():
+        try:
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Transcribing audio...'})}\n\n"
+            
+            transcription_response = transcribe_audio_whisper_openai(audio_url=audio_url)
+            if not transcription_response['success']:
+                print(transcription_response["error"])
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n"
+                return
+            
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+            
+            transcription = transcription_response["data"]["transcript"]
+            
+            summary_response = generate_summary(transcription, lang, context=context)
+            if not summary_response['success']:
+                print(summary_response["error"])
+                yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
+                return
+            
+            summary_data = summary_response['data']
+
+            # Step 3: Create a new note
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
+            
+            note_create = NoteCreate(
+                title=summary_data['title'],
+                summary=summary_data['markdown'],
+                transcript_text=transcript,
+                language=summary_data['lang'],
+                content_url=audio_url,
+            )
+            new_note = add_note(
+                db=db,
+                user_id=current_user.id,
+                folder_id=None,
+                note_create=note_create
+            )
+
+            metadata_create = NoteMetadataCreate(
+                title=summary_data['title'],
+                content_category=summary_data['content_category'],
+                emoji_representation=summary_data['emoji_representation'],
+                date_created=datetime.now()
+            )
+            note_metadata = add_metadata(
+                db=db,
+                user_id=current_user.id,
+                note_id=new_note.id,
+                metadata_create=metadata_create
+            )
+
+            # Convert metadata to JSON
+            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
+
+            # Final status with the note metadata JSON
+            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': 'Process failed'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
