@@ -1,10 +1,11 @@
 # # do it from youtube
 # # do it from audio record --> can be handled in the client side
-# import json
+import json
+import requests
 # import os
 # from openai import OpenAI
 # from youtube_transcript_api import YouTubeTranscriptApi
-# from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs
 # from pytubefix import YouTube
 # from pytubefix.captions import Caption
 # from pytubefix.cli import on_progress
@@ -23,14 +24,55 @@
 # )
 # load_env()
 
-# def get_video_id(url):
-#     parsed_url = urlparse(url)
-#     if parsed_url.hostname == 'youtu.be':
-#         return parsed_url.path[1:]
-#     elif parsed_url.hostname in ('www.youtube.com', 'youtube.com'):
-#         query_params = parse_qs(parsed_url.query)
-#         return query_params.get('v', [None])[0]
-#     return None
+def get_video_id(url):
+    parsed_url = urlparse(url)
+    if parsed_url.hostname == 'youtu.be':
+        return parsed_url.path[1:]
+    elif parsed_url.hostname in ('www.youtube.com', 'youtube.com'):
+        query_params = parse_qs(parsed_url.query)
+        return query_params.get('v', [None])[0]
+    return None
+
+def generate_transcript(youtube_url):
+    video_id = get_video_id(youtube_url)
+    if not video_id:
+        return {
+            "success": False,
+            "error": {
+                "type": "InvalidURL",
+                "message": "The provided YouTube URL is invalid."
+            }
+        }
+    
+    url = "https://mustard-cayenne-0hlavnqk8jx0kp7z.salad.cloud/transcribe/"
+    
+    payload = json.dumps({
+        "url": youtube_url
+    })
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.request("POST", url, headers=headers, data=payload)
+    
+    if response.status_code == 200:
+        transcription_data = response.json()
+        return {
+            "success": True,
+            "data": {
+                "video_id": video_id,
+                "transcript": transcription_data["transcription"]
+            },
+            "error": None
+        }
+    else:
+        return {
+            "success": False,
+            "error": {
+                "type": "TranscriptionError",
+                "message": "Failed to get transcription from the server."
+            }
+        }
 
 # def generate_transcript(youtube_url):
 #     video_id = get_video_id(youtube_url)

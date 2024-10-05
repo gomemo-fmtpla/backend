@@ -18,6 +18,8 @@ from app.usecases.note.note import (
     get_note_by_id,  
     get_all_notes,
 )
+from app.usecases.generation.transcript_extraction import generate_transcript
+from app.usecases.generation.audio_transcribe_extraction import transcribe_audio_local
 from app.usecases.generation.summary_generation import generate_summary
 from app.usecases.generation.summary_translation_generation import translate_summary  # Assuming you have a function for translation
 from app.usecases.generation.flashcard_generation import generate_flashcards  # Assuming a flashcard function
@@ -55,6 +57,7 @@ async def generate_youtube_summary(
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
 
             transcript_response = generate_transcript(youtube_url)
+            print(transcript_response)
             if not transcript_response['success']:
                 yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe the YouTube video'})}\n\n"
                 return
@@ -194,6 +197,7 @@ async def store_audio(
     finally:
         if os.path.exists(audio_path):
             os.remove(audio_path)
+            
 @router.get("/generate/audio/2/")
 async def generate_audio_summary_2(
     audio_url: str,
@@ -322,7 +326,7 @@ async def generate_audio_summary(
             yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
 
         except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': 'Process failed'})}\n\n"
+            yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
