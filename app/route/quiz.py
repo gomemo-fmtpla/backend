@@ -1,4 +1,4 @@
-from app.usecases.generation.transcript_extraction import generate_transcript
+from app.usecases.generation.youtube_transcript_extraction import generate_transcript
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
