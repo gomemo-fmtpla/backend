@@ -19,6 +19,7 @@ from app.usecases.note.note import (
     get_all_notes,
 )
 from app.usecases.generation.transcript_extraction import generate_transcript
+from app.usecases.generation.audio_transcribe_extraction import transcribe_audio_local
 from app.usecases.generation.summary_generation import generate_summary
 from app.usecases.generation.summary_translation_generation import translate_summary  # Assuming you have a function for translation
 from app.usecases.generation.flashcard_generation import generate_flashcards  # Assuming a flashcard function
@@ -325,7 +326,7 @@ async def generate_audio_summary(
             yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
 
         except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': 'Process failed'})}\n\n"
+            yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

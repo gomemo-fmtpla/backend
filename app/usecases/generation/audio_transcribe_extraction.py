@@ -4,6 +4,7 @@ from app.commons.environment_manager import load_env
 from openai import OpenAI
 import os
 import requests
+import json
 
 load_env()
 client = OpenAI(
@@ -58,6 +59,46 @@ def transcribe_audio(audio_url: str) -> dict:
             "success": False,
             "error": {
                 "type": "TranslationError",
+                "message": str(e)
+            }
+        }
+        
+def transcribe_audio_local(audio_url: str) -> dict:
+    # """Transcribe an audio file using the local Whisper model, downloading it first to a static temporary file."""
+    url = "https://mustard-cayenne-0hlavnqk8jx0kp7z.salad.cloud/transcribe-audio/"
+
+    payload = json.dumps({
+        "url": audio_url
+    })
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    try:
+        response = requests.request("POST", url, headers=headers, data=payload)
+
+        if response.status_code == 200:
+            transcription_data = response.json()
+            return {
+                "success": True,
+                "data": {
+                    "transcript": transcription_data["transcription"]
+                },
+                "error": None
+            }
+        else:
+            return {
+                "success": False,
+                "error": {
+                    "type": "TranscriptionError",
+                    "message": "Failed to get transcription from the server."
+                }
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {
+                "type": "TranscriptionError",
                 "message": str(e)
             }
         }
