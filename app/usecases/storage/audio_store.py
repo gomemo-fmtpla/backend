@@ -9,10 +9,14 @@ from app.commons.environment_manager import load_env;
 
 # Create client with access key and secret key with specific region.
 load_env()
+MINIO_ENDPOINTS = os.getenv("MINIO_ENDPOINTS")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+
 minio_client = Minio(
-    "gomemo-minio.skaq74.easypanel.host",
-    access_key=os.getenv("MINIO_ACCESS_KEY"),
-    secret_key=os.getenv("MINIO_SECRET_KEY"),
+    endpoint=MINIO_ENDPOINTS,
+    access_key=MINIO_ACCESS_KEY,
+    secret_key=MINIO_SECRET_KEY,
 )
 
 BUCKET_NAME = "gomemo"
@@ -30,8 +34,8 @@ def put_object(audio_file, audio_path) -> str:
             audio_path
         )
         
-        # Generate public URL for the file
-        public_url = minio_client.presigned_get_object(BUCKET_NAME, minio_file_name)
+        # Generate public URL for the file (without expiration)
+        public_url = f"{MINIO_ENDPOINTS}/{BUCKET_NAME}/{minio_file_name}"
         return public_url
 
     except S3Error as err:
@@ -95,7 +99,6 @@ def extract_audio_filename(audio_url: str):
     path = urllib.parse.urlparse(decoded_url).path
     filename = path.split('/')[-1]
     return filename
-
 
 def delete_object(file_name: str):
     """
