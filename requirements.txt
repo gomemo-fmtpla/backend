@@ -18,3 +18,4 @@ pytubefix
 ffmpeg
 setuptools-rust
 psutil
+pydub
