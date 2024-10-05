@@ -11,26 +11,20 @@ client = OpenAI(
 )
       
 def transcribe_audio(audio_url: str) -> dict:
-    # """Transcribe an audio file using the local Whisper model, downloading it first to a static temporary file."""
-    # check if the audio has the scheme, if not add https://
-    if not audio_url.startswith("https://"):
+     # """Transcribe an audio file using the local Whisper model, downloading it first to a static temporary file."""
+    if not audio_url.startswith('https://'):
         audio_url = "https://" + audio_url
-    
+     
     url = "https://mustard-cayenne-0hlavnqk8jx0kp7z.salad.cloud/transcribe-audio/"
-
     payload = json.dumps({
         "url": audio_url
     })
-    
     headers = {
         'Content-Type': 'application/json'
     }
-
     try:
         response = requests.request("POST", url, headers=headers, data=payload)
-
         if response.status_code == 200:
-            print(response.json())
             transcription_data = response.json()
             return {
                 "success": True,

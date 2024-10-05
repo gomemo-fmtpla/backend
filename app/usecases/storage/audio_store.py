@@ -5,7 +5,7 @@ import requests
 from minio import Minio, S3Error
 import urllib.parse
 
-from app.commons.environment_manager import load_env;
+from app.commons.environment_manager import load_env
 
 # Create client with access key and secret key with specific region.
 load_env()
@@ -17,6 +17,7 @@ minio_client = Minio(
     endpoint=MINIO_ENDPOINTS,
     access_key=MINIO_ACCESS_KEY,
     secret_key=MINIO_SECRET_KEY,
+    secure=True
 )
 
 BUCKET_NAME = "gomemo"
@@ -73,7 +74,7 @@ def copy_file_from_url(public_url: str) -> str:
         )
 
         # Generate public URL for the file
-        public_url = minio_client.presigned_get_object(BUCKET_NAME, minio_file_name)
+        public_url = f"{MINIO_ENDPOINTS}/{BUCKET_NAME}/{minio_file_name}"
         print("New public url : ", public_url)
         return public_url
 
@@ -83,7 +84,7 @@ def copy_file_from_url(public_url: str) -> str:
         raise HTTPException(status_code=500, detail=f"Failed to upload file to MinIO: {str(s3_err)}")
     finally:
         # Clean up the local file
-        if os.path.exists(local_file_path):
+        if 'local_file_path' in locals() and os.path.exists(local_file_path):
             os.remove(local_file_path)
 
 
