@@ -26,19 +26,39 @@ def transcribe_audio(audio_url: str) -> dict:
         response = requests.request("POST", url, headers=headers, data=payload)
         if response.status_code == 200:
             transcription_data = response.json()
-            return {
-                "success": True,
-                "data": {
-                    "transcript": transcription_data["transcription"]
-                },
-                "error": None
-            }
+            if "transcription" in transcription_data:
+                return {
+                    "success": True,
+                    "data": {
+                        "transcript": transcription_data["transcription"]
+                    },
+                    "error": None
+                }
+            elif "partial_transcription" in transcription_data:
+                return {
+                    "success": False,
+                    "data": None,
+                    "error": {
+                        "type": "IncompleteTranscription",
+                        "message": "Only partial transcription is available."
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "data": None,
+                    "error": {
+                        "type": "TranscriptionUnavailable",
+                        "message": "Transcription data is not available in the response."
+                    }
+                }
         else:
             return {
                 "success": False,
+                "data": None,
                 "error": {
                     "type": "TranscriptionError",
-                    "message": "Failed to get transcription from the server."
+                    "message": f"Failed to get transcription from the server. Status code: {response.status_code}"
                 }
             }
     except Exception as e:
