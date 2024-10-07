@@ -3,7 +3,8 @@
 from datetime import datetime
 import json
 import os
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+import traceback
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks
 from fastapi.params import Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -146,34 +147,35 @@ async def generate_audio_summary(
     lang: str = "",
     context: str = "",  
     current_user: User = Depends(auth_guard),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    async def event_generator():
+    async def process_audio():
         try:
-            # Step 1: Transcribe the audio
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Transcribing audio...'})}\n\n"
+            print("Starting audio processing...")
             
+            # Step 1: Transcribe the audio
+            print(f"Transcribing audio from URL: {audio_url}")
             transcription_response = transcribe_audio(audio_url=audio_url)
             if not transcription_response['success']:
-                print(transcription_response["error"])
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n"
+                print(f"Transcription failed: {transcription_response['error']}")
                 return
             
-            transcript = transcription_response['data']['transcript']
-
-            # Step 2: Generate summary
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+            transcript = transcription_response["data"]["transcript"]
+            print(f"Transcription successful. Length of transcript: {len(transcript)}")
             
+            # Step 2: Generate summary
+            print(f"Generating summary. Language: {lang}, Context: {context}")
             summary_response = generate_summary(transcript, lang, context=context)
             if not summary_response['success']:
-                yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
+                print(f"Summary generation failed: {summary_response.get('error', 'Unknown error')}")
                 return
             
             summary_data = summary_response['data']
+            print(f"Summary generated successfully. Title: {summary_data['title']}")
 
             # Step 3: Create a new note
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
-            
+            print("Creating new note...")
             note_create = NoteCreate(
                 title=summary_data['title'],
                 summary=summary_data['markdown'],
@@ -187,7 +189,9 @@ async def generate_audio_summary(
                 folder_id=None,
                 note_create=note_create
             )
+            print(f"New note created with ID: {new_note.id}")
 
+            print("Creating note metadata...")
             metadata_create = NoteMetadataCreate(
                 title=summary_data['title'],
                 content_category=summary_data['content_category'],
@@ -200,17 +204,17 @@ async def generate_audio_summary(
                 note_id=new_note.id,
                 metadata_create=metadata_create
             )
+            print(f"Note metadata created")
 
-            # Convert metadata to JSON
-            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
-
-            # Final status with the note metadata JSON
-            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
+            print("Audio processing completed successfully.")
 
         except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
+            print(f"Process failed: {str(e)}")
+            print(f"Error type: {type(e).__name__}")
+            print(f"Error traceback: {traceback.format_exc()}")
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    background_tasks.add_task(process_audio)
+    return {"message": "Audio processing started in the background"}
 
 @router.put("/{note_id}")
 async def update_existing_note(
