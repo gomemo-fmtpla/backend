@@ -49,33 +49,14 @@ def generate_transcript(youtube_url):
     
     if response.status_code == 200:
         transcription_data = response.json()
-        if "transcription" in transcription_data:
-            return {
-                "success": True,
-                "data": {
-                    "video_id": video_id,
-                    "transcript": transcription_data["transcription"]
-                },
-                "error": None
-            }
-        elif "partial_transcription" in transcription_data:
-            return {
-                "success": False,
-                "data": None,
-                "error": {
-                    "type": "IncompleteTranscription",
-                    "message": "Only partial transcription is available."
-                }
-            }
-        else:
-            return {
-                "success": False,
-                "data": None,
-                "error": {
-                    "type": "TranscriptionUnavailable",
-                    "message": "Transcription data is not available in the response."
-                }
-            }
+        return {
+            "success": True,
+            "data": {
+                "video_id": video_id,
+                "transcript": transcription_data["transcription"]
+            },
+            "error": None
+        }
     else:
         return {
             "success": False,
