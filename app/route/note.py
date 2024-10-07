@@ -461,9 +461,9 @@ async def generate_audio_summary_2(
             
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
             
-            transcription = transcription_response["data"]["transcript"]
+            transcript = transcription_response["data"]["transcript"]
             
-            summary_response = generate_summary(transcription, lang, context=context)
+            summary_response = generate_summary(transcript, lang, context=context)
             if not summary_response['success']:
                 print(summary_response["error"])
                 yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
