@@ -96,3 +96,26 @@ async def update_subscription(
         "subscription_plan": updated_user.subscription_plan,
         "receipt": updated_user.transaction_receipt,
     }
+
+from fastapi import HTTPException
+
+@router.delete("/delete/")
+async def delete_user(
+    current_user: User = Depends(auth_guard),
+    db: Session = Depends(get_db)
+):
+    user_to_delete = get_user_by_id(db, current_user.id)
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    delete_user_by_id(db, current_user.id)
+    return {"message": f"User '{current_user.username}' deleted successfully"}
+
+def get_user_by_id(db: Session, user_id: int) -> User:
+    return db.query(User).filter(User.id == user_id).first()
+
+def delete_user_by_id(db: Session, user_id: int):
+    user = get_user_by_id(db, user_id)
+    if user:
+        db.delete(user)
+        db.commit()
