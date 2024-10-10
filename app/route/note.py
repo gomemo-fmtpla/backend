@@ -216,6 +216,63 @@ async def generate_audio_summary(
     background_tasks.add_task(process_audio)
     return {"message": "Audio processing started in the background"}
 
+@router.post("/generate/context/")
+async def generate_context_note(
+    context: str,
+    lang: str = "",
+    current_user: User = Depends(auth_guard),
+    db: Session = Depends(get_db)
+):
+    async def event_generator():
+        try:
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Générer un résumé...'})}\n\n"
+            
+            summary_response = generate_summary(context, lang, context=context)
+            if not summary_response['success']:
+                print(summary_response["error"])
+                yield f"data: {json.dumps({'status': 'error', 'message': f'Échec de la génération du résumé'})}\n\n"
+                return
+            
+            summary_data = summary_response['data']
+
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Créer une note...'})}\n\n"
+            
+            note_create = NoteCreate(
+                title=summary_data['title'],
+                summary=summary_data['markdown'],
+                transcript_text=context,
+                language=summary_data['lang'],
+                content_url="",  # Pas d'URL de contenu pour une note basée sur le contexte
+            )
+            new_note = add_note(
+                db=db,
+                user_id=current_user.id,
+                folder_id=None,
+                note_create=note_create
+            )
+
+            metadata_create = NoteMetadataCreate(
+                title=summary_data['title'],
+                content_category=summary_data['content_category'],
+                emoji_representation=summary_data['emoji_representation'],
+                date_created=datetime.now()
+            )
+            note_metadata = add_metadata(
+                db=db,
+                user_id=current_user.id,
+                note_id=new_note.id,
+                metadata_create=metadata_create
+            )
+
+            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
+
+            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': 'Échec du processus'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 @router.put("/{note_id}")
 async def update_existing_note(
     note_id: int,
