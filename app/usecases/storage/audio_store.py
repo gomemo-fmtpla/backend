@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 from fastapi import HTTPException
 import requests
@@ -24,9 +25,10 @@ BUCKET_NAME = "gomemo"
 
 def put_object(audio_file, audio_path) -> str:
     try:
-        file_id = str(uuid.uuid4())
+        timestamp = int(time.time())
         file_extension = os.path.splitext(audio_file.filename)[1]
-        minio_file_name = f"{file_id}{file_extension}"
+        file_name = os.path.splitext(audio_file.filename)[0]
+        minio_file_name = f"{file_name}_{timestamp}{file_extension}"
         
         # Upload the file to MinIO
         minio_client.fput_object(
