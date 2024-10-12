@@ -216,7 +216,7 @@ async def generate_audio_summary(
     background_tasks.add_task(process_audio)
     return {"message": "Audio processing started in the background"}
 
-@router.post("/generate/context/")
+@router.get("/generate/context/")
 async def generate_context_note(
     context: str,
     lang: str = "",
