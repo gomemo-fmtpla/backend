@@ -18,6 +18,8 @@ from app.usecases.note.note import (
     update_note,
     get_note_by_id,  
     get_all_notes,
+    move_note_to_folder_usecase,
+    remove_note_folder_usecase,
 )
 from app.usecases.generation.youtube_transcript_extraction import generate_transcript, generate_youtube_transcript
 from app.usecases.generation.audio_transcribe_extraction import transcribe_audio, transcribe_audio_whisper_openai
@@ -572,3 +574,23 @@ async def generate_audio_summary_2(
             yield f"data: {json.dumps({'status': 'error', 'message': 'Process failed'})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@router.put("/{note_id}/move-folder")
+async def move_note_to_folder(note_id: int, new_folder_id: int, current_user: User = Depends(auth_guard), 
+                              db: Session = Depends(get_db)):
+    note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    updated_note = move_note_to_folder_usecase(db=db, note_id=note_id, new_folder_id=new_folder_id)
+    return updated_note
+
+@router.put("/{note_id}/remove-folder")
+async def remove_note_folder(note_id: int, current_user: User = Depends(auth_guard), 
+                             db: Session = Depends(get_db)):
+    note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    updated_note = remove_note_folder_usecase(db=db, note_id=note_id)
+    return updated_note

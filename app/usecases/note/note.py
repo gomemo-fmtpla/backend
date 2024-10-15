@@ -163,29 +163,24 @@ def update_metadata(
         db.rollback()
         raise e
     
-def move_folder(
-    db: Session, 
-    folder_id: int, 
-    new_folder_id: Optional[int]
-) -> List[Note]:
+def move_note_to_folder_usecase(db: Session, note_id: int, new_folder_id: Optional[int]) -> Note:
     try:
-        notes = db.query(Note).filter(Note.folder_id == folder_id).all()
-        for note in notes:
-            note.folder_id = new_folder_id
+        note = db.query(Note).filter(Note.id == note_id).first()
+        note.folder_id = new_folder_id
         db.commit()
-        return notes
+        db.refresh(note)
+        return note
     except SQLAlchemyError as e:
         db.rollback()
         raise e
 
-def remove_folder(db: Session, folder_id: int) -> List[Note]:
+def remove_note_folder_usecase(db: Session, note_id: int) -> Note:
     try:
-        notes = db.query(Note).filter(Note.folder_id == folder_id).all()
-        for note in notes:
-            note.folder_id = None  # Unlink notes from the folder
-        db.query(Folder).filter(Folder.id == folder_id).delete()
+        note = db.query(Note).filter(Note.id == note_id).first()
+        note.folder_id = None
         db.commit()
-        return notes
+        db.refresh(note)
+        return note
     except SQLAlchemyError as e:
         db.rollback()
         raise e
