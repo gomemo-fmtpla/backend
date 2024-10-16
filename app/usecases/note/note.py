@@ -197,4 +197,14 @@ def get_notes_by_folder(db: Session, folder_id: int) -> List[Note]:
 def get_note_by_id(db: Session, note_id: int, user_id: int) -> Note:
     return db.query(Note).filter(Note.id == note_id, Note.user_id == user_id).first()
 
+def get_folder_by_note_id_usecase(db: Session, note_id: int, user_id: int) -> Note:
+    try:
+        note = db.query(Note).filter(Note.id == note_id, Note.user_id == user_id).first()
+        if note:
+            return db.query(Folder).filter(Folder.id == note.folder_id).first()
+        return None
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise e
+
 

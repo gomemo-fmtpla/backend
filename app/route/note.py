@@ -14,7 +14,8 @@ from app.database.schemas.note import NoteCreate, NoteMetadataCreate, NoteUpdate
 from app.usecases.auth_guard import auth_guard
 from app.usecases.note.note import (
     add_metadata,
-    add_note, 
+    add_note,
+    get_folder_by_note_id_usecase, 
     update_note,
     get_note_by_id,  
     get_all_notes,
@@ -594,3 +595,10 @@ async def remove_note_folder(note_id: int, current_user: User = Depends(auth_gua
     
     updated_note = remove_note_folder_usecase(db=db, note_id=note_id)
     return updated_note
+
+@router.get("/{note_id}/folder/")
+async def get_folder_by_note_id(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
+    folder = get_folder_by_note_id_usecase(db, note_id=note_id, user_id=current_user.id)
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    return folder
