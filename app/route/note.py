@@ -28,7 +28,7 @@ from app.usecases.generation.summary_generation import generate_summary
 from app.usecases.generation.summary_translation_generation import translate_summary  # Assuming you have a function for translation
 from app.usecases.generation.flashcard_generation import generate_flashcards  # Assuming a flashcard function
 from app.usecases.generation.quiz_generation import generate_quizzes  # Assuming a quizzes function
-from app.database.models import NoteMetadata, User, Note
+from app.database.models import NoteLink, NoteMetadata, User, Note
 
 from app.usecases.storage.audio_store import copy_file_from_url, delete_object, extract_audio_filename, put_object
 from app.usecases.storage.note_store import delete_note_object, put_note_object
@@ -631,6 +631,15 @@ async def export_note(note_id: int, current_user: User = Depends(auth_guard), db
         # Upload the file to MinIO
         try:
             public_url = put_note_object(file_path, file_name)
+            
+            # Save the public URL to the note_links table
+            note_link = NoteLink(
+                note_id=note_id,
+                user_id=current_user.id,
+                public_url=public_url
+            )
+            db.add(note_link)
+            db.commit()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to upload to MinIO: {str(e)}")
 
