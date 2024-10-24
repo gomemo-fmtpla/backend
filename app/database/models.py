@@ -67,3 +67,15 @@ class NoteMetadata(Base):
     note = relationship("Note", back_populates="note_metadata")
     user = relationship("User", back_populates="note_metadata")
     folder = relationship("Folder", back_populates="note_metadata")
+
+class NoteLink(Base):
+    __tablename__ = 'note_links'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    note_id = Column(Integer, ForeignKey("notes.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    public_url = Column(String, nullable=False)
+    date_created = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", back_populates="note_links")
+    note = relationship("Note", back_populates="note_links")
