@@ -1,14 +1,14 @@
-# app/api/notes.py
-
+# app/route/notes.py
 from datetime import datetime
 import json
 import os
+import tempfile
 import traceback
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks
 from fastapi.params import Header
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
-from app.commons.pydantic_to_json import metadata_to_dict
+from app.commons.pydantic_to_json import metadata_to_dict, note_to_dict
 from app.database.db import get_db
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate, NoteUpdate
 from app.usecases.auth_guard import auth_guard
@@ -31,6 +31,7 @@ from app.usecases.generation.quiz_generation import generate_quizzes  # Assuming
 from app.database.models import NoteMetadata, User, Note
 
 from app.usecases.storage.audio_store import copy_file_from_url, delete_object, extract_audio_filename, put_object
+from app.usecases.storage.note_store import delete_note_object, put_note_object
 
 router = APIRouter(
     prefix="/notes",
@@ -602,3 +603,35 @@ async def get_folder_by_note_id(note_id: int, current_user: User = Depends(auth_
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     return folder
+
+@router.post("/{note_id}/export/")
+async def export_note(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
+    note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
+
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    note_dict = note_to_dict(note)
+    note_json = json.dumps(note_dict)
+
+    # Create a temporary directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Define the file name and path for the JSON file
+        file_name = f"note_{note_id}.json"
+        file_path = os.path.join(temp_dir, file_name)
+
+        # Write the JSON string to a temporary file
+        with open(file_path, "w") as file:
+            file.write(note_json)
+
+        # Verify the file exists
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=500, detail="Temporary file creation failed")
+
+        # Upload the file to MinIO
+        try:
+            public_url = put_note_object(file_path, file_name)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to upload to MinIO: {str(e)}")
+
+    return {"message": "Note exported successfully", "url": public_url}

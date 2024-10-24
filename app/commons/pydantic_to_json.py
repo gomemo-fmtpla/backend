@@ -14,8 +14,8 @@ def note_to_dict(note: Note) -> Dict:
         "language": note.language,
         "flashcards": note.flashcards,
         "quizzes": note.quizzes,
-        "created_at": note.created_at,
-        "updated_at": note.updated_at,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
+        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
         # Add other fields as needed
     }
 
