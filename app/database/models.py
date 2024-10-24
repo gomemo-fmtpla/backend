@@ -21,6 +21,7 @@ class User(Base):
     folders = relationship("Folder", back_populates="user")
     notes = relationship("Note", back_populates="user")
     note_metadata = relationship("NoteMetadata", back_populates="user")
+    note_links = relationship("NoteLink", back_populates="user")
 
 class Folder(Base):
     __tablename__ = "folders"
@@ -52,6 +53,7 @@ class Note(Base):
     user = relationship("User", back_populates="notes")
     folder = relationship("Folder", back_populates="notes")
     note_metadata = relationship("NoteMetadata", back_populates="note", uselist=False)
+    note_links = relationship("NoteLink", back_populates="note")
 
 class NoteMetadata(Base):
     __tablename__ = "note_metadata"
