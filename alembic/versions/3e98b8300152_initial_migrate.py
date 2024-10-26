@@ -25,7 +25,7 @@ def upgrade() -> None:
     sa.Column('username', sa.String(length=50), nullable=True),
     sa.Column('email', sa.String(length=100), nullable=True),
     sa.Column('hashed_password', sa.String(length=100), nullable=True),
-    sa.Column('subscription_plan', sa.Enum('free', 'weekly', 'monthly', 'annual', name='subscriptionplantype'), nullable=False),
+    sa.Column('subscription_plan', sa.Enum('free', 'weekly', 'monthly', 'annual', 'family', name='subscriptionplantype'), nullable=False),
     sa.Column('subscription_end_date', sa.Date(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.PrimaryKeyConstraint('id')

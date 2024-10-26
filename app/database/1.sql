@@ -1,5 +1,5 @@
 -- Create the enum type
-CREATE TYPE subscription_plan_type AS ENUM ('free', 'weekly', 'monthly', 'annual');
+CREATE TYPE subscription_plan_type AS ENUM ('free', 'weekly', 'monthly', 'annual', 'family');
 
 -- Users table
 CREATE TABLE
