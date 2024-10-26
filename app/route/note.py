@@ -604,43 +604,54 @@ async def get_folder_by_note_id(note_id: int, current_user: User = Depends(auth_
         raise HTTPException(status_code=404, detail="Folder not found")
     return folder
 
-@router.post("/{note_id}/export/")
+@router.get("/{note_id}/export/")
 async def export_note(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
     note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
-
+    
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     
-    note_dict = note_to_dict(note)
-    note_json = json.dumps(note_dict)
-
-    # Create a temporary directory
-    with tempfile.TemporaryDirectory() as temp_dir:
-        # Define the file name and path for the JSON file
-        file_name = f"note_{note_id}.json"
-        file_path = os.path.join(temp_dir, file_name)
-
-        # Write the JSON string to a temporary file
-        with open(file_path, "w") as file:
-            file.write(note_json)
-
-        # Verify the file exists
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=500, detail="Temporary file creation failed")
-
-        # Upload the file to MinIO
-        try:
-            public_url = put_note_object(file_path, file_name)
-            
-            # Save the public URL to the note_links table
-            note_link = NoteLink(
-                note_id=note_id,
-                user_id=current_user.id,
-                public_url=public_url
-            )
-            db.add(note_link)
-            db.commit()
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to upload to MinIO: {str(e)}")
+    public_url = f"https://gomemo.ai/noteid_{note_id}"
 
     return {"message": "Note exported successfully", "url": public_url}
+
+# @router.post("/{note_id}/export/")
+# async def export_note(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
+#     note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
+
+#     if not note:
+#         raise HTTPException(status_code=404, detail="Note not found")
+    
+#     note_dict = note_to_dict(note)
+#     note_json = json.dumps(note_dict)
+
+#     # Create a temporary directory
+#     with tempfile.TemporaryDirectory() as temp_dir:
+#         # Define the file name and path for the JSON file
+#         file_name = f"note_{note_id}.json"
+#         file_path = os.path.join(temp_dir, file_name)
+
+#         # Write the JSON string to a temporary file
+#         with open(file_path, "w") as file:
+#             file.write(note_json)
+
+#         # Verify the file exists
+#         if not os.path.exists(file_path):
+#             raise HTTPException(status_code=500, detail="Temporary file creation failed")
+
+#         # Upload the file to MinIO
+#         try:
+#             public_url = put_note_object(file_path, file_name)
+            
+#             # Save the public URL to the note_links table
+#             note_link = NoteLink(
+#                 note_id=note_id,
+#                 user_id=current_user.id,
+#                 public_url=public_url
+#             )
+#             db.add(note_link)
+#             db.commit()
+#         except Exception as e:
+#             raise HTTPException(status_code=500, detail=f"Failed to upload to MinIO: {str(e)}")
+
+#     return {"message": "Note exported successfully", "url": public_url}
