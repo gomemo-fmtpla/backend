@@ -640,7 +640,7 @@ async def export_note(old_note_id: int, old_user_username: str, current_user: Us
         title=old_note_metadata.title,
         content_category=old_note_metadata.content_category,
         emoji_representation=old_note_metadata.emoji_representation,
-        date_created=old_note_metadata.date_created
+        date_created=datetime.now()
     )
     new_note_metadata = add_metadata(
         db=db,
