@@ -1,14 +1,13 @@
 # app/route/notes.py
-from datetime import datetime
 import json
 import os
-import tempfile
 import traceback
+
+from datetime import datetime
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks
-from fastapi.params import Header
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from app.commons.pydantic_to_json import metadata_to_dict, note_to_dict
+from app.commons.pydantic_to_json import metadata_to_dict
 from app.database.db import get_db
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate, NoteUpdate
 from app.usecases.auth_guard import auth_guard
@@ -25,13 +24,12 @@ from app.usecases.note.note import (
 from app.usecases.generation.youtube_transcript_extraction import generate_transcript, generate_youtube_transcript
 from app.usecases.generation.audio_transcribe_extraction import transcribe_audio, transcribe_audio_whisper_openai
 from app.usecases.generation.summary_generation import generate_summary
-from app.usecases.generation.summary_translation_generation import translate_summary  # Assuming you have a function for translation
-from app.usecases.generation.flashcard_generation import generate_flashcards  # Assuming a flashcard function
-from app.usecases.generation.quiz_generation import generate_quizzes  # Assuming a quizzes function
+from app.usecases.generation.summary_translation_generation import translate_summary
+from app.usecases.generation.flashcard_generation import generate_flashcards
+from app.usecases.generation.quiz_generation import generate_quizzes
 from app.database.models import NoteLink, NoteMetadata, User, Note
 
-from app.usecases.storage.audio_store import copy_file_from_url, delete_object, extract_audio_filename, put_object
-from app.usecases.storage.note_store import delete_note_object, put_note_object
+from app.usecases.storage.audio_store import delete_object, extract_audio_filename, put_object
 
 router = APIRouter(
     prefix="/notes",
@@ -604,16 +602,61 @@ async def get_folder_by_note_id(note_id: int, current_user: User = Depends(auth_
         raise HTTPException(status_code=404, detail="Folder not found")
     return folder
 
-@router.get("/{note_id}/export/")
+@router.post("/export-note")
 async def export_note(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
     note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
     
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     
-    public_url = f"https://gomemo.ai/noteid_{note_id}"
+    shared_url = f"https://gomemo.ai/{current_user.username}/{note_id}"
 
-    return {"message": "Note exported successfully", "url": public_url}
+    return {"message": "Note exported successfully", "shared_url": shared_url, "note": note}
+
+@router.post("/import-note")
+async def export_note(old_note_id: int, old_user_username: str, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
+    old_user = db.query(User).filter(User.username == old_user_username).first()
+    old_note = get_note_by_id(db, note_id=old_note_id, user_id=old_user.id)
+    old_note_metadata = db.query(NoteMetadata).filter(NoteMetadata.note_id == old_note.id, NoteMetadata.user_id == old_user.id).first()
+    
+    if not old_note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    note_create = NoteCreate(
+        title=old_note.title,
+        summary=old_note.summary,
+        transcript_text=old_note.transcript_text,
+        language=old_note.language,
+        content_url=old_note.content_url,
+    )
+    new_note = add_note(
+        db=db,
+        user_id=current_user.id,
+        folder_id=None,
+        note_create=note_create
+    )
+
+    metadata_create = NoteMetadataCreate(
+        title=old_note_metadata.title,
+        content_category=old_note_metadata.content_category,
+        emoji_representation=old_note_metadata.emoji_representation,
+        date_created=old_note_metadata.date_created
+    )
+    new_note_metadata = add_metadata(
+        db=db,
+        user_id=current_user.id,
+        note_id=new_note.id,
+        metadata_create=metadata_create
+    )
+    
+    old_shared_url = f"https://gomemo.ai/{old_user.username}/{old_note.id}"
+    new_shared_url = f"https://gomemo.ai/{current_user.username}/{new_note.id}"
+    
+    return { "message": "Note imported successfully", 
+            "old_shared_url": old_shared_url, 
+            "old_note_id": old_note.id,
+            "new_shared_url": new_shared_url, 
+            "new_note_id": new_note.id}
 
 # @router.post("/{note_id}/export/")
 # async def export_note(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
