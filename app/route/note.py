@@ -602,7 +602,7 @@ async def get_folder_by_note_id(note_id: int, current_user: User = Depends(auth_
         raise HTTPException(status_code=404, detail="Folder not found")
     return folder
 
-@router.post("/export-note")
+@router.post("/export-note/")
 async def export_note(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
     note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
     
@@ -613,7 +613,7 @@ async def export_note(note_id: int, current_user: User = Depends(auth_guard), db
 
     return {"message": "Note exported successfully", "shared_url": shared_url, "note": note}
 
-@router.post("/import-note")
+@router.post("/import-note/")
 async def export_note(old_note_id: int, old_user_username: str, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
     old_user = db.query(User).filter(User.username == old_user_username).first()
     old_note = get_note_by_id(db, note_id=old_note_id, user_id=old_user.id)
