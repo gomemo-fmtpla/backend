@@ -658,7 +658,7 @@ async def export_note(old_note_id: int, old_user_username: str, current_user: Us
             "old_note_id": old_note.id,
             "new_shared_url": new_shared_url, 
             "new_note_id": new_note.id}
-
+    
 @router.get("/chat/")
 async def generate_chat_response(
     chat_input: str,
@@ -666,29 +666,51 @@ async def generate_chat_response(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
-    async def event_generator():
-        try:
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating chat response...'})}\n\n"
+    note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
+    
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    summary = note.summary
+    lang = note.language
+    chat_response = generate_chat(chat_input, summary, lang)
+
+    if not chat_response['success']:
+        return {"status": "error", "chatInput": chat_input, "answer": "Failed to generate chat response"}
+
+    chat_response_data = chat_response['data']
+    return {"status": "success", "chatInput": chat_input, "answer": chat_response_data}
+
+# @router.get("/chat/")
+# async def generate_chat_response(
+#     chat_input: str,
+#     note_id: int,
+#     current_user: User = Depends(auth_guard),
+#     db: Session = Depends(get_db)
+# ):
+#     async def event_generator():
+#         try:
+#             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating chat response...'})}\n\n"
             
-            note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
+#             note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
             
-            if not note:
-                raise HTTPException(status_code=404, detail="Note not found")
+#             if not note:
+#                 raise HTTPException(status_code=404, detail="Note not found")
             
-            summary = note.summary
-            lang = note.language
-            chat_response = generate_chat(chat_input, summary, lang)
+#             summary = note.summary
+#             lang = note.language
+#             chat_response = generate_chat(chat_input, summary, lang)
 
-            if not chat_response['success']:
-                print(chat_response["error"])
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to generate chat response'})}\n\n"
-                return
+#             if not chat_response['success']:
+#                 print(chat_response["error"])
+#                 yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to generate chat response'})}\n\n"
+#                 return
 
-            chat_response_data = chat_response['data']
+#             chat_response_data = chat_response['data']
 
-            yield f"data: {json.dumps({'status': 'complete', 'message': chat_response_data})}\n\n"
+#             yield f"data: {json.dumps({'status': 'complete', 'message': chat_response_data})}\n\n"
 
-        except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
+#         except Exception as e:
+#             yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+#     return StreamingResponse(event_generator(), media_type="text/event-stream")
