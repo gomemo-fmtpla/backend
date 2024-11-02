@@ -19,3 +19,4 @@ ffmpeg
 setuptools-rust
 psutil
 pydub
+groq
