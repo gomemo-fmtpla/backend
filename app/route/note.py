@@ -11,6 +11,7 @@ from app.commons.pydantic_to_json import metadata_to_dict
 from app.database.db import get_db
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate, NoteUpdate
 from app.usecases.auth_guard import auth_guard
+from app.usecases.generation.chat_generation import generate_chat
 from app.usecases.note.note import (
     add_metadata,
     add_note,
@@ -658,43 +659,36 @@ async def export_note(old_note_id: int, old_user_username: str, current_user: Us
             "new_shared_url": new_shared_url, 
             "new_note_id": new_note.id}
 
-# @router.post("/{note_id}/export/")
-# async def export_note(note_id: int, current_user: User = Depends(auth_guard), db: Session = Depends(get_db)):
-#     note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
-
-#     if not note:
-#         raise HTTPException(status_code=404, detail="Note not found")
-    
-#     note_dict = note_to_dict(note)
-#     note_json = json.dumps(note_dict)
-
-#     # Create a temporary directory
-#     with tempfile.TemporaryDirectory() as temp_dir:
-#         # Define the file name and path for the JSON file
-#         file_name = f"note_{note_id}.json"
-#         file_path = os.path.join(temp_dir, file_name)
-
-#         # Write the JSON string to a temporary file
-#         with open(file_path, "w") as file:
-#             file.write(note_json)
-
-#         # Verify the file exists
-#         if not os.path.exists(file_path):
-#             raise HTTPException(status_code=500, detail="Temporary file creation failed")
-
-#         # Upload the file to MinIO
-#         try:
-#             public_url = put_note_object(file_path, file_name)
+@router.get("/chat/")
+async def generate_chat_response(
+    chat_input: str,
+    note_id: int,
+    current_user: User = Depends(auth_guard),
+    db: Session = Depends(get_db)
+):
+    async def event_generator():
+        try:
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating chat response...'})}\n\n"
             
-#             # Save the public URL to the note_links table
-#             note_link = NoteLink(
-#                 note_id=note_id,
-#                 user_id=current_user.id,
-#                 public_url=public_url
-#             )
-#             db.add(note_link)
-#             db.commit()
-#         except Exception as e:
-#             raise HTTPException(status_code=500, detail=f"Failed to upload to MinIO: {str(e)}")
+            note = get_note_by_id(db, note_id=note_id, user_id=current_user.id)
+            
+            if not note:
+                raise HTTPException(status_code=404, detail="Note not found")
+            
+            summary = note.summary
+            lang = note.language
+            chat_response = generate_chat(chat_input, summary, lang)
 
-#     return {"message": "Note exported successfully", "url": public_url}
+            if not chat_response['success']:
+                print(chat_response["error"])
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to generate chat response'})}\n\n"
+                return
+
+            chat_response_data = chat_response['data']
+
+            yield f"data: {json.dumps({'status': 'complete', 'message': chat_response_data})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
