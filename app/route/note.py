@@ -678,8 +678,7 @@ async def generate_chat_response(
     if not chat_response['success']:
         return {"status": "error", "chatInput": chat_input, "answer": "Failed to generate chat response"}
 
-    chat_response_data = chat_response['data']
-    return {"status": "success", "chatInput": chat_input, "answer": chat_response_data}
+    return chat_response
 
 # @router.get("/chat/")
 # async def generate_chat_response(
