@@ -12,11 +12,17 @@ client = Groq(
 def generate_chat(chat_input: str="", summary: str="", language: str="") -> dict:
     try:
         response_text = client.chat.completions.create(
-            model="llama3-70b-8192",
+            model="llama3-8b-8192",
             messages=[
                 {
                     "role": "system",
-                    "content": f"Please generate a chat response of the following content based on {summary} using the language of {language}. If the language is empty or not provided, then autodetect the language."
+                    "content": f"""
+                    You are an assistant that answers questions solely based on the following context:
+                    
+                    {summary}
+                    
+                    If the user's question is not relevant to this context, respond with 'This question doesn't seem related to the note. Do you have another question?'. Answer in the specified language {language}. If {language} is empty or not provided, automatically detect the language of the context and respond in that language.
+                    """
                 },
                 {
                     "role": "user",
