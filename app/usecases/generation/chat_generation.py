@@ -1,37 +1,35 @@
 from app.commons.environment_manager import load_env
-from openai import OpenAI
-from groq import Groq
+# from openai import OpenAI
+# from groq import Groq
+import replicate
 import os
 
 load_env()
 
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
+client = replicate.Client(
+    api_token=os.getenv("REPLICATE_API_TOKEN")
 )
 
 def generate_chat(chat_input: str="", summary: str="", language: str="") -> dict:
     try:
-        response_text = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=[
-                {
-                    "role": "system",
-                    "content": f"""
-                    You are an assistant that answers questions solely based on the following context:
-                    
-                    {summary}
-                    
-                    If the user's question is not relevant to this context, respond with 'This question doesn't seem related to the note. Do you have another question?'. Answer in the specified language {language}. If {language} is empty or not provided, automatically detect the language of the context and respond in that language.
-                    """
-                },
-                {
-                    "role": "user",
-                    "content": chat_input
-                }
-            ],
+        input_data = {
+            "system_prompt": f"""
+                You are an assistant that answers questions solely based on the following context:
+                
+                {summary}
+                
+                If the user's question is not relevant to this context, respond with 'This question doesn't seem related to the note. Do you have another question?'. 
+                Answer in the specified language {language}. If {language} is empty or not provided, automatically detect the language of the context and respond in that language.
+            """,
+            "prompt": chat_input,
+        }
+
+        output = client.run(
+            "meta/meta-llama-3-8b-instruct",
+            input=input_data                  
         )
-        # Extract the 'content' field
-        chat_completion = response_text.choices[0].message.content.strip()
+        
+        formatted_output = ''.join(output).replace("\n", "")
 
         # Parse the JSON response
         import json
@@ -39,7 +37,7 @@ def generate_chat(chat_input: str="", summary: str="", language: str="") -> dict
             return {
                 "success": True,
                 "data": {
-                    "answer": chat_completion
+                    "answer": formatted_output
                 },
                 "error": None
             }

@@ -10,7 +10,6 @@ youtube-transcript-api
 openai
 bcrypt
 passlib
-# to be deleted
 google-generativeai
 python-multipart
 minio
@@ -19,4 +18,5 @@ ffmpeg
 setuptools-rust
 psutil
 pydub
-groq
+
+replicate
