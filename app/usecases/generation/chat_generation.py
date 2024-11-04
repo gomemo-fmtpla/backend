@@ -24,7 +24,7 @@ def generate_chat(chat_input: str="", summary: str="", language: str="") -> dict
             "prompt": chat_input,
         }
 
-        output = client.run(
+        output = client.stream(
             "meta/meta-llama-3-8b-instruct",
             input=input_data                  
         )
