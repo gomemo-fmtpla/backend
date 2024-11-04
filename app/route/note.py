@@ -661,8 +661,8 @@ async def export_note(old_note_id: int, old_user_username: str, current_user: Us
     
 @router.get("/chat/")
 async def generate_chat_response(
-    chat_input: str,
     note_id: int,
+    chat_input: str,
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
