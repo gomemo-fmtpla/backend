@@ -1,3 +1,4 @@
+import time
 from click import File
 from app.commons.environment_manager import load_env
 from openai import OpenAI
@@ -131,4 +132,65 @@ def transcribe_audio_whisper_openai(audio_url: str) -> dict:
                 "message": str(e)
             }
         }
-  
+
+def transcribe_audio_salad(audio_url: str) -> dict:
+    try:
+        if not audio_url.startswith("https://"):
+            audio_url = "https://" + audio_url
+            
+        # Send a GET request to the URL
+        response = requests.get(audio_url, stream=True)
+        response.raise_for_status()
+
+        # Create transcription job using Salad API
+        salad_url = "https://api.salad.com/api/public/organizations/fmtpla/inference-endpoints/transcribe/jobs"
+        headers = {
+            "Content-Type": "application/json",
+            "Salad-Api-key": os.getenv("SALAD_API_KEY")
+        }
+        data = {
+            "input": {
+                "url": audio_url
+                # "language_code": "en",
+                # "word_level_timestamps": True,
+                # "diarization": True,
+                # "srt": True
+            }
+        }
+
+        response = requests.post(salad_url, headers=headers, json=data)
+        response.raise_for_status()
+        job_id = response.json()["id"]
+        # print(f"Transcription job created with ID: {job_id}")
+
+        # Poll for transcription job status
+        status_url = f"{salad_url}/{job_id}"
+        while True:
+            response = requests.get(status_url, headers={"Salad-Api-key": os.getenv("SALAD_API_KEY")})
+            response.raise_for_status()
+            status = response.json()["status"]
+            if status == "succeeded":
+                transcription = response.json()["output"]["text"]
+                # print(f"Transcription job succeeded: {transcription}")
+                break
+            elif status in ["failed", "canceled"]:
+                raise Exception(f"Transcription job failed with status: {status}")
+            time.sleep(5) 
+
+        return {
+            "success": True,
+            "data": {
+                "transcript": transcription
+            },
+            "error": None
+        }        
+
+    except Exception as e:
+        print("Error when transcribing content", e)
+        return {
+            "success": False,
+            "error": {
+                "type": "TranslationError",
+                "message": str(e)
+            }
+        }
