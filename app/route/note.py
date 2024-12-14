@@ -399,10 +399,10 @@ async def create_flashcards(
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     
-    # if note.flashcards :
-    #     note.flashcards.clear()
+    if note.flashcards :
+        note.flashcards.clear()
 
-    flashcard_data = generate_flashcards(note.transcript_text, note.language)
+    flashcard_data = generate_flashcards(note.summary, note.language)
     if not flashcard_data['success'] :
        print(flashcard_data['error'])
        raise HTTPException(status_code=500, detail="Server fail")
@@ -422,10 +422,10 @@ async def create_quizzes(
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     
-    # if note.quizzes :
-    #     note.quizzes.clear()
+    if note.quizzes :
+        note.quizzes.clear()
     
-    quiz_data = generate_quizzes(note.transcript_text, note.language)
+    quiz_data = generate_quizzes(note.summary, note.language)
     if not quiz_data['success'] :
        print(quiz_data['error'])
        raise HTTPException(status_code=500, detail="Server fail")
