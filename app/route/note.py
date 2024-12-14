@@ -400,7 +400,7 @@ async def create_flashcards(
         raise HTTPException(status_code=404, detail="Note not found")
     
     if note.flashcards :
-        note.flashcards.delete()
+        note.flashcards.clear()
 
     flashcard_data = generate_flashcards(note.transcript_text, note.language)
     if not flashcard_data['success'] :
@@ -423,7 +423,7 @@ async def create_quizzes(
         raise HTTPException(status_code=404, detail="Note not found")
     
     if note.quizzes :
-        note.quizzes.delete()
+        note.quizzes.clear()
     
     quiz_data = generate_quizzes(note.transcript_text, note.language)
     if not quiz_data['success'] :
