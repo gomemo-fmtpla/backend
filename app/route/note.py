@@ -28,7 +28,7 @@ from app.usecases.generation.summary_generation import generate_summary
 from app.usecases.generation.summary_translation_generation import translate_summary
 from app.usecases.generation.flashcard_generation import generate_flashcards
 from app.usecases.generation.quiz_generation import generate_quizzes
-from app.database.models import NoteLink, NoteMetadata, User, Note
+from app.database.models import NoteMetadata, User, Note
 
 from app.usecases.storage.audio_store import delete_object, extract_audio_filename, put_object
 
