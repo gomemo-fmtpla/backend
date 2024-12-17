@@ -210,6 +210,10 @@ async def generate_audio_summary(
             print(f"Note metadata created")
 
             print("Audio processing completed successfully.")
+            
+            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
+
+            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
 
         except Exception as e:
             print(f"Process failed: {str(e)}")
