@@ -56,16 +56,6 @@ CREATE TABLE
             TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
-CREATE TABLE note_links (
-    id SERIAL PRIMARY KEY,
-    note_id INTEGER REFERENCES notes(id) ON DELETE CASCADE,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    public_url VARCHAR(255) NOT NULL,
-    date_created TIMESTAMP 
-    WITH 
-            TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE INDEX idx_note_metadata_note_id ON note_metadata (note_id);
 
 CREATE INDEX idx_folders_user_id ON folders (user_id);
