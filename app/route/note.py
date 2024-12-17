@@ -221,7 +221,7 @@ async def generate_audio_summary(
             print(f"Error traceback: {traceback.format_exc()}")
 
     background_tasks.add_task(process_audio)
-    return {"message": "Audio processing started in the background"}
+    return StreamingResponse(process_audio(), media_type="text/event-stream")
 
 @router.get("/generate/context/")
 async def generate_context_note(
