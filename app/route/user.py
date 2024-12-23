@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from app.database.db import get_db
-from app.database.models import Note, NoteMetadata, User
+from app.database.models import Folder, Note, NoteMetadata, User
 from app.usecases.auth_guard import auth_guard
 from app.database.schemas.user import UserCreate, UserUpdate
 from app.usecases.note.note import create_welcoming_note
@@ -114,15 +114,28 @@ async def delete_user(
     # Delete all notes related to the current user
     notes = db.query(Note).filter(Note.user_id == current_user.id).all()
     for note in notes:
+        # Delete note metadata
         note_metadata = db.query(NoteMetadata).filter(NoteMetadata.note_id == note.id).first()
         if note_metadata:
             db.delete(note_metadata)
         
-        file_name = extract_audio_filename(note.content_url)
-        if file_name and not note.translated:
-            delete_object(file_name=file_name)
+        # Delete associated Minio files
+        if note.content_url:
+            file_name = extract_audio_filename(note.content_url)
+            if file_name:  # Remove the translated check since we want to delete all files
+                try:
+                    delete_object(file_name=file_name)
+                except Exception as e:
+                    print(f"Error deleting file {file_name}: {str(e)}")
+                    # Continue with deletion even if file deletion fails
+                    pass
         
         db.delete(note)
+    
+    # Delete user folders (the cascade will handle related records)
+    folders = db.query(Folder).filter(Folder.user_id == current_user.id).all()
+    for folder in folders:
+        db.delete(folder)
     
     delete_user_by_id(db, current_user.id)
     db.commit()
