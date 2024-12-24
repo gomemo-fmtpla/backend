@@ -103,15 +103,24 @@ def extract_audio_filename(audio_url: str):
     filename = path.split('/')[-1]
     return filename
 
-def delete_object(file_name: str):
-    """
-    Deletes an object from the MinIO bucket.
-    
-    :param file_name: The name of the file in MinIO to delete.
-    :raises HTTPException: If the deletion from MinIO fails.
-    """
+def extract_audio_filename(url: str) -> str:
+    if not url:
+        raise ValueError("Empty URL provided")
     try:
+        # Extract filename from URL
+        filename = url.split('/')[-1]
+        if not filename:
+            raise ValueError("Could not extract filename from URL")
+        return filename
+    except Exception as e:
+        raise ValueError(f"Failed to extract filename from URL: {str(e)}")
+
+def delete_object(file_name: str):
+    try:
+        # Check if object exists before trying to delete
+        if not minio_client.stat_object(BUCKET_NAME, file_name):
+            raise ValueError(f"File {file_name} does not exist in MinIO bucket")
         # Delete the file from MinIO
         minio_client.remove_object(BUCKET_NAME, file_name)
-    except S3Error as err:
-        raise HTTPException(status_code=500, detail=f"Failed to delete file from MinIO: {str(err)}")
+    except Exception as e:
+        raise ValueError(f"Failed to delete file from MinIO: {str(e)}")

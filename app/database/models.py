@@ -1,7 +1,8 @@
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, DateTime, Date, Enum, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON 
+from sqlalchemy.dialects.postgresql import JSON as PostgresJSON
 from sqlalchemy.ext.declarative import declarative_base
 import enum
 
@@ -44,8 +45,8 @@ class Note(Base):
     transcript_text = Column(Text)
     language = Column(String(10))
     translated = Column(Boolean, nullable=True, default=False)
-    flashcards = Column(JSONB, nullable=True, default=None)
-    quizzes = Column(JSONB, nullable=True, default=None)
+    flashcards = Column(JSON().with_variant(PostgresJSON, 'postgresql'), nullable=True, default=None)
+    quizzes = Column(JSON().with_variant(PostgresJSON, 'postgresql'), nullable=True, default=None)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
