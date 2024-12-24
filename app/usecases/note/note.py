@@ -1,6 +1,7 @@
 # app/usecases/note.py
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from app.usecases.storage.audio_store import delete_object, extract_audio_filename
 from sqlalchemy.orm import Session
 from app.database.models import Folder, Note, NoteMetadata, User
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate, NoteMetadataUpdate, NoteUpdate
@@ -206,5 +207,55 @@ def get_folder_by_note_id_usecase(db: Session, note_id: int, user_id: int) -> No
     except SQLAlchemyError as e:
         db.rollback()
         raise e
-
-
+    
+def delete_old_notes(db: Session) -> dict:
+    try:
+        three_months_ago = datetime.now() - timedelta(days=90)
+        old_notes = db.query(Note).filter(Note.created_at < three_months_ago).all()
+        
+        deleted_count = 0
+        errors = []
+        
+        for note in old_notes:
+            try:
+                # First delete associated metadata
+                metadata = db.query(NoteMetadata).filter(NoteMetadata.note_id == note.id).first()
+                if metadata:
+                    db.delete(metadata)
+                
+                # Then handle the file deletion
+                if note.content_url:
+                    try:
+                        filename = extract_audio_filename(note.content_url)
+                        if filename:
+                            try:
+                                delete_object(filename)
+                            except Exception as e:
+                                errors.append(f"Failed to delete MinIO file for note {note.id}: {str(e)}")
+                                # Continue with note deletion even if file deletion fails
+                    except Exception as e:
+                        errors.append(f"Failed to process content URL for note {note.id}: {str(e)}")
+                
+                # Finally delete the note
+                db.delete(note)
+                deleted_count += 1
+                
+                # Commit after each successful deletion
+                db.commit()
+                
+            except Exception as e:
+                db.rollback()
+                errors.append(f"Failed to delete note {note.id}: {str(e)}")
+        
+        return {
+            "success": True,
+            "deleted_count": deleted_count,
+            "errors": errors
+        }
+    except Exception as e:
+        db.rollback()
+        return {
+            "success": False,
+            "deleted_count": 0,
+            "errors": [str(e)]
+        }
