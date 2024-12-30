@@ -523,10 +523,11 @@ async def delete_note(
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     
-    file_name = extract_audio_filename(note.content_url)
-    print("File name extracted: ", file_name)
-    if file_name:
-        delete_object(file_name=file_name)
+    if note.content_url:
+        file_name = extract_audio_filename(note.content_url)
+        print("File name extracted: ", file_name)
+        if file_name:
+            delete_object(file_name=file_name)
 
     db.delete(note_metadata)
     db.delete(note)
