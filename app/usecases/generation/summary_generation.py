@@ -40,7 +40,7 @@ def generate_summary(transcript: str, language: str="", context: str = "") -> di
                         The output must be in the following JSON format:
 
                         {{
-                            "title" : "A concise title separate from the markdown title. Title using the language of {language}. If the language is empty or not provided, then autodetect the language.",
+                            "title" : "A concise title separate from the markdown title. Title using the language of {language}. If the language is empty or not provided, then autodetect the language. Do not translate the title.",
                             "content_category": "Category Phrase (capitalize the first letter)",
                             "emoji_representation": "Emoji",
                             "lang": "language code here",
