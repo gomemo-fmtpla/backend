@@ -19,6 +19,13 @@ class User(Base):
     transaction_receipt = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
+    primary_goal = Column(String(100), nullable=True)
+    user_type = Column(String(50), nullable=True)
+    study_format = Column(String(50), nullable=True)
+    usage_frequency = Column(String(50), nullable=True)
+    focus_topic = Column(String(100), nullable=True)
+    learning_style = Column(String(50), nullable=True)
+    
     folders = relationship("Folder", back_populates="user")
     notes = relationship("Note", back_populates="user")
     note_metadata = relationship("NoteMetadata", back_populates="user")

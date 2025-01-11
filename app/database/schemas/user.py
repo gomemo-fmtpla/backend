@@ -11,7 +11,13 @@ class UserCreate(UserBase):
     subscription_end_date: date = None
 
 class UserUpdate(BaseModel):
-    # hashed_password: str | None = None
     subscription_plan: str | None = None
     transaction_receipt: str
-    # subscription_end_date: date | None = None
+
+class UserOnboardingUpdate(BaseModel):
+    primary_goal: str | None = None
+    user_type: str | None = None
+    study_format: str | None = None
+    usage_frequency: str | None = None
+    focus_topic: str | None = None
+    learning_style: str | None = None
