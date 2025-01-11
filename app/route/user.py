@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from app.database.db import get_db
 from app.database.models import Folder, Note, NoteMetadata, User
 from app.usecases.auth_guard import auth_guard
-from app.database.schemas.user import UserCreate, UserUpdate
+from app.database.schemas.user import UserCreate, UserUpdate, UserOnboardingUpdate
 from app.usecases.note.note import create_welcoming_note
 from app.usecases.storage.audio_store import delete_object, extract_audio_filename
 from app.usecases.user.user import (
@@ -154,3 +154,34 @@ def delete_user_by_id(db: Session, user_id: int):
     if user:
         db.delete(user)
         db.commit()
+
+# POST /update_onboarding_data
+@router.post("/update_onboarding_data/")
+async def update_onboarding_data(
+    primary_goal: str,
+    user_type: str,
+    study_format: str,
+    usage_frequency: str,
+    focus_topic: str,
+    learning_style: str,
+    current_user: User = Depends(auth_guard), 
+    db: Session = Depends(get_db),
+    
+):
+    user_update = UserOnboardingUpdate(
+        primary_goal=primary_goal,
+        user_type=user_type,
+        study_format=study_format,
+        usage_frequency=usage_frequency,
+        focus_topic=focus_topic,
+        learning_style=learning_style,
+    )
+    updated_user = update_user(db, current_user.id, user_update)
+    return {
+        "primary_goal": updated_user.primary_goal,
+        "user_type": updated_user.user_type,
+        "study_format": updated_user.study_format,
+        "usage_frequency": updated_user.usage_frequency,
+        "focus_topic": updated_user.focus_topic,
+        "learning_style": updated_user.learning_style,
+    }
