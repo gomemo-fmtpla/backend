@@ -202,6 +202,7 @@ async def store_audio(
         object_url = put_object(audio_file, audio_path)
         
         # Return the URL or any other necessary responseZ
+        print("object_url: ", object_url)
         return {"success": True, "url": object_url}
     
     except Exception as e:

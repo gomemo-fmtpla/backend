@@ -31,6 +31,7 @@ def put_object(audio_file, audio_path) -> str:
         minio_file_name = f"{file_name}_{timestamp}{file_extension}"
         
         # Upload the file to MinIO
+        print(f"Putting object [{audio_file}] [{minio_file_name}] to MinIO...")
         minio_client.fput_object(
             BUCKET_NAME,
             minio_file_name,
@@ -39,6 +40,7 @@ def put_object(audio_file, audio_path) -> str:
         
         # Generate public URL for the file (without expiration)
         public_url = f"{MINIO_ENDPOINTS}/{BUCKET_NAME}/{minio_file_name}"
+        print(f"MinIO public url: [{public_url}]")
         return public_url
 
     except S3Error as err:
