@@ -2,6 +2,7 @@
 import json
 import os
 import traceback
+import uuid
 
 from datetime import datetime
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks
@@ -31,6 +32,13 @@ from app.usecases.generation.quiz_generation import generate_quizzes
 from app.database.models import NoteMetadata, User, Note
 
 from app.usecases.storage.audio_store import delete_object, extract_audio_filename, put_object
+
+from redis import Redis
+from app.config import settings
+
+
+# Initialize Redis client
+redis_client = Redis.from_url(settings.REDIS_URL)
 
 router = APIRouter(
     prefix="/notes",
@@ -221,35 +229,38 @@ async def generate_audio_summary(
     lang: str = "",
     context: str = "",  
     current_user: User = Depends(auth_guard),
-    db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = BackgroundTasks()
+    db: Session = Depends(get_db)
 ):
-    async def process_audio():
+    async def event_generator():
+        task_id = None
         try:
-            print("Starting audio processing...")
+            # Generate unique task ID
+            task_id = str(uuid.uuid4())
+            redis_client.set(f"task_status:{task_id}", "QUEUED")
             
-            # Step 1: Transcribe the audio
-            print(f"Transcribing audio from URL: {audio_url}")
+            yield f"data: {json.dumps({'status': 'queued', 'task_id': task_id})}\n\n"
+            
+            # Process transcription
             transcription_response = transcribe_audio(audio_url=audio_url)
             if not transcription_response['success']:
-                print(f"Transcription failed: {transcription_response['error']}")
-                return
+                raise Exception(transcription_response['error'])
+            
+            redis_client.set(f"task_status:{task_id}", "TRANSCRIBING")
+            yield f"data: {json.dumps({'status': 'transcribing'})}\n\n"
             
             transcript = transcription_response["data"]["transcript"]
-            print(f"Transcription successful. Length of transcript: {len(transcript)}")
             
-            # Step 2: Generate summary
-            print(f"Generating summary. Language: {lang}, Context: {context}")
+            # Generate summary
+            redis_client.set(f"task_status:{task_id}", "SUMMARIZING")
+            yield f"data: {json.dumps({'status': 'summarizing'})}\n\n"
+            
             summary_response = generate_summary(transcript, lang, context=context)
             if not summary_response['success']:
-                print(f"Summary generation failed: {summary_response.get('error', 'Unknown error')}")
-                return
+                raise Exception(summary_response['error'])
             
             summary_data = summary_response['data']
-            print(f"Summary generated successfully. Title: {summary_data['title']}")
-
-            # Step 3: Create a new note
-            print("Creating new note...")
+            
+            # Create note
             note_create = NoteCreate(
                 title=summary_data['title'],
                 summary=summary_data['markdown'],
@@ -257,42 +268,24 @@ async def generate_audio_summary(
                 language=summary_data['lang'],
                 content_url=audio_url,
             )
-            new_note = add_note(
-                db=db,
-                user_id=current_user.id,
-                folder_id=None,
-                note_create=note_create
-            )
-            print(f"New note created with ID: {new_note.id}")
-
-            print("Creating note metadata...")
-            metadata_create = NoteMetadataCreate(
-                title=summary_data['title'],
-                content_category=summary_data['content_category'],
-                emoji_representation=summary_data['emoji_representation'],
-                date_created=datetime.now()
-            )
-            note_metadata = add_metadata(
-                db=db,
-                user_id=current_user.id,
-                note_id=new_note.id,
-                metadata_create=metadata_create
-            )
-            print(f"Note metadata created")
-
-            print("Audio processing completed successfully.")
             
-            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
-
-            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
+            new_note = add_note(db=db, user_id=current_user.id, 
+                              folder_id=None, note_create=note_create)
+            
+            redis_client.set(f"task_status:{task_id}", "COMPLETE")
+            yield f"data: {json.dumps({'status': 'complete', 'note_id': new_note.id})}\n\n"
 
         except Exception as e:
-            print(f"Process failed: {str(e)}")
-            print(f"Error type: {type(e).__name__}")
-            print(f"Error traceback: {traceback.format_exc()}")
+            if task_id:
+                redis_client.set(f"task_status:{task_id}", "FAILED")
+            yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
+        finally:
+            if task_id:
+                # Cleanup task status after 1 hour
+                redis_client.expire(f"task_status:{task_id}", 3600)
 
-    background_tasks.add_task(process_audio)
-    return StreamingResponse(process_audio(), media_type="text/event-stream")
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
 @router.get("/generate/audio/2/")
 async def generate_audio_summary_2(
