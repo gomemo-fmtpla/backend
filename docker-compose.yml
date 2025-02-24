@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - '3657:3657'
+    volumes:
+      - ./key.json:/app/key.json
+    depends_on:
+      - redis
+  redis:
+    image: redis:latest
+    command: redis-server --port 6380
+    ports:
+      - '6380:6380'
+volumes:
+  postgres_data:
