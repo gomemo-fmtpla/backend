@@ -92,25 +92,20 @@ def copy_file_from_url(public_url: str) -> str:
             os.remove(local_file_path)
 
 
-def extract_audio_filename(audio_url: str):
-    # Decode the URL
-    decoded_url = urllib.parse.unquote(audio_url)
-    
-    # Check if the URL is a YouTube link
-    if "youtube.com" in decoded_url or "youtu.be" in decoded_url:
-        return None  # Or handle YouTube links differently if needed
-    
-    # Extract the filename from the URL
-    path = urllib.parse.urlparse(decoded_url).path
-    filename = path.split('/')[-1]
-    return filename
-
 def extract_audio_filename(url: str) -> str:
     if not url:
         raise ValueError("Empty URL provided")
     try:
-        # Extract filename from URL
-        filename = url.split('/')[-1]
+        # Parse the URL and extract the path
+        parsed_url = urllib.parse.urlparse(url)
+        # Get the last component of the path
+        filename = parsed_url.path.split('/')[-1]
+        
+        # For YouTube URLs, also include the query parameters in the filename
+        if "youtube.com" in parsed_url.netloc or "youtu.be" in parsed_url.netloc:
+            if parsed_url.query:
+                filename = f"{filename}_{parsed_url.query}"
+        
         if not filename:
             raise ValueError("Could not extract filename from URL")
         return filename
@@ -119,10 +114,13 @@ def extract_audio_filename(url: str) -> str:
 
 def delete_object(file_name: str):
     try:
+        # URL encode the filename to handle special characters
+        encoded_file_name = urllib.parse.quote(file_name, safe='')
+        
         # Check if object exists before trying to delete
-        if not minio_client.stat_object(BUCKET_NAME, file_name):
+        if not minio_client.stat_object(BUCKET_NAME, encoded_file_name):
             raise ValueError(f"File {file_name} does not exist in MinIO bucket")
         # Delete the file from MinIO
-        minio_client.remove_object(BUCKET_NAME, file_name)
+        minio_client.remove_object(BUCKET_NAME, encoded_file_name)
     except Exception as e:
         raise ValueError(f"Failed to delete file from MinIO: {str(e)}")
