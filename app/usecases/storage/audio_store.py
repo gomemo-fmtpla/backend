@@ -7,12 +7,24 @@ from minio import Minio, S3Error
 import urllib.parse
 
 from app.commons.environment_manager import load_env
+from app.commons.logger import logger
 
 # Create client with access key and secret key with specific region.
 load_env()
 MINIO_ENDPOINTS = os.getenv("MINIO_ENDPOINTS")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+
+if not all([MINIO_ENDPOINTS, MINIO_ACCESS_KEY, MINIO_SECRET_KEY]):
+    error_msg = "Missing required MinIO environment variables:"
+    if not MINIO_ENDPOINTS:
+        error_msg += " MINIO_ENDPOINTS"
+    if not MINIO_ACCESS_KEY:
+        error_msg += " MINIO_ACCESS_KEY"
+    if not MINIO_SECRET_KEY:
+        error_msg += " MINIO_SECRET_KEY"
+    logger.error(error_msg)
+    raise ValueError(error_msg)
 
 minio_client = Minio(
     endpoint=MINIO_ENDPOINTS,
@@ -91,26 +103,26 @@ def copy_file_from_url(public_url: str) -> str:
         if 'local_file_path' in locals() and os.path.exists(local_file_path):
             os.remove(local_file_path)
 
-
-def extract_audio_filename(audio_url: str):
-    # Decode the URL
-    decoded_url = urllib.parse.unquote(audio_url)
-    
-    # Check if the URL is a YouTube link
-    if "youtube.com" in decoded_url or "youtu.be" in decoded_url:
-        return None  # Or handle YouTube links differently if needed
-    
-    # Extract the filename from the URL
-    path = urllib.parse.urlparse(decoded_url).path
-    filename = path.split('/')[-1]
-    return filename
-
 def extract_audio_filename(url: str) -> str:
     if not url:
         raise ValueError("Empty URL provided")
     try:
-        # Extract filename from URL
-        filename = url.split('/')[-1]
+        # Parse the URL
+        parsed_url = urllib.parse.urlparse(url)
+        
+        # For YouTube URLs, extract the video ID and create a simple filename
+        if "youtube.com" in parsed_url.netloc or "youtu.be" in parsed_url.netloc:
+            query_params = urllib.parse.parse_qs(parsed_url.query)
+            video_id = query_params.get('v', [''])[0]
+            if video_id:
+                return f"youtube_{video_id}"
+            elif parsed_url.path.startswith('/watch_v='):
+                # Handle already processed YouTube URLs
+                video_id = parsed_url.path.split('=')[1]
+                return f"youtube_{video_id}"
+        
+        # For regular URLs, get the last component of the path
+        filename = parsed_url.path.split('/')[-1]
         if not filename:
             raise ValueError("Could not extract filename from URL")
         return filename
@@ -119,10 +131,22 @@ def extract_audio_filename(url: str) -> str:
 
 def delete_object(file_name: str):
     try:
-        # Check if object exists before trying to delete
-        if not minio_client.stat_object(BUCKET_NAME, file_name):
-            raise ValueError(f"File {file_name} does not exist in MinIO bucket")
-        # Delete the file from MinIO
-        minio_client.remove_object(BUCKET_NAME, file_name)
+        # For YouTube files, they're stored with a simple prefix format
+        if file_name.startswith('youtube_'):
+            encoded_file_name = file_name 
+        else:
+            # For other files, URL encode the filename to handle special characters
+            encoded_file_name = urllib.parse.quote(file_name)
+        
+        try:
+            # Try to delete the object without checking existence first
+            minio_client.remove_object(BUCKET_NAME, encoded_file_name)
+        except S3Error as s3_err:
+            if s3_err.code == 'NoSuchKey':
+                # Object doesn't exist, which is fine for deletion
+                pass
+            else:
+                # Other S3 errors should be raised
+                raise
     except Exception as e:
         raise ValueError(f"Failed to delete file from MinIO: {str(e)}")

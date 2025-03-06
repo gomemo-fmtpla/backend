@@ -36,35 +36,38 @@ def generate_transcript(youtube_url):
             }
         }
     
-    url = "https://mustard-cayenne-0hlavnqk8jx0kp7z.salad.cloud/transcribe/"
-    
-    payload = json.dumps({
-        "url": youtube_url
-    })
-    headers = {
-        'Content-Type': 'application/json'
-    }
-    
-    response = requests.request("POST", url, headers=headers, data=payload)
-    
-    if response.status_code == 200:
-        transcription_data = response.json()
-        return {
-            "success": True,
-            "data": {
-                "video_id": video_id,
-                "transcript": transcription_data["transcription"]
-            },
-            "error": None
+    try:
+        url = "https://mustard-cayenne-0hlavnqk8jx0kp7z.salad.cloud/transcribe/"
+        
+        payload = json.dumps({
+            "url": youtube_url
+        })
+        headers = {
+            'Content-Type': 'application/json'
         }
-    else:
-        return {
-            "success": False,
-            "error": {
-                "type": "TranscriptionError",
-                "message": "Failed to get transcription from the server."
+        
+        response = requests.request("POST", url, headers=headers, data=payload, timeout=3600)
+        
+        if response.status_code == 200:
+            transcription_data = response.json()
+            print(f"transcription_data: {transcription_data}")
+            return {
+                "success": True,
+                "data": {
+                    "video_id": video_id,
+                    "transcript": transcription_data["transcription"]
+                },
+                "error": None
             }
-        }
+    except Exception as e:
+        print(f"Error on generate_transcript: {str(e)}.")
+        return {
+                "success": False,
+                "error": {
+                    "type": "TranscriptionError",
+                    "message": str(e)
+                }
+            }
         
 def generate_youtube_transcript(youtube_url):
     video_id = get_video_id(youtube_url)
