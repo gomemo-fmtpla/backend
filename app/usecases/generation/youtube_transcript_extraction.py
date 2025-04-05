@@ -37,7 +37,7 @@ def generate_transcript(youtube_url):
         }
     
     try:
-        url = "https://mustard-cayenne-0hlavnqk8jx0kp7z.salad.cloud/transcribe/"
+        url = "https://whisperx-frosty-field-2189.fly.dev/transcribe/"
         
         payload = json.dumps({
             "url": youtube_url

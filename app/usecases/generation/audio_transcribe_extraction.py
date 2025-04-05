@@ -16,7 +16,7 @@ def transcribe_audio(audio_url: str) -> dict:
     if not audio_url.startswith('https://'):
         audio_url = "https://" + audio_url
      
-    url = "https://mustard-cayenne-0hlavnqk8jx0kp7z.salad.cloud/transcribe-audio/"
+    url = "https://whisperx-frosty-field-2189.fly.dev/transcribe-audio/"
     payload = json.dumps({
         "url": audio_url
     })
