@@ -263,7 +263,7 @@ async def generate_audio_summary(
             redis_client.set(f"task_status:{task_id}", "QUEUED")
             
             yield f"data: {json.dumps({'status': 'queued', 'task_id': task_id})}\n\n"
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating task...'})}\n\n"
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
             
             # Process transcription
             transcription_response = transcribe_audio(audio_url=audio_url)
@@ -271,7 +271,6 @@ async def generate_audio_summary(
                 raise Exception(transcription_response['error'])
             
             redis_client.set(f"task_status:{task_id}", "TRANSCRIBING")
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
             
             transcript = transcription_response["data"]["transcript"]
             
