@@ -296,8 +296,26 @@ async def generate_audio_summary(
             new_note = add_note(db=db, user_id=current_user.id, 
                               folder_id=None, note_create=note_create)
             
+            # Add metadata for the note, similar to YouTube endpoint
+            metadata_create = NoteMetadataCreate(
+                title=summary_data['title'],
+                content_category=summary_data['content_category'],
+                emoji_representation=summary_data['emoji_representation'],
+                date_created=datetime.now()
+            )
+            
+            note_metadata = add_metadata(
+                db=db,
+                user_id=current_user.id,
+                note_id=new_note.id,
+                metadata_create=metadata_create
+            )
+            
+            # Convert metadata to JSON and include in the response
+            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
+            
             redis_client.set(f"task_status:{task_id}", "COMPLETE")
-            yield f"data: {json.dumps({'status': 'complete', 'note_id': new_note.id})}\n\n"
+            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
 
         except Exception as e:
             if task_id:
@@ -309,7 +327,6 @@ async def generate_audio_summary(
                 redis_client.expire(f"task_status:{task_id}", 3600)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-
 
 @router.get("/generate/audio/2/")
 async def generate_audio_summary_2(
