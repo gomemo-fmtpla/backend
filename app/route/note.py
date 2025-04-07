@@ -270,13 +270,13 @@ async def generate_audio_summary(
                 raise Exception(transcription_response['error'])
             
             redis_client.set(f"task_status:{task_id}", "TRANSCRIBING")
-            yield f"data: {json.dumps({'status': 'transcribing'})}\n\n"
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
             
             transcript = transcription_response["data"]["transcript"]
             
             # Generate summary
             redis_client.set(f"task_status:{task_id}", "SUMMARIZING")
-            yield f"data: {json.dumps({'status': 'summarizing'})}\n\n"
+            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
             
             summary_response = generate_summary(transcript, lang, context=context)
             if not summary_response['success']:
