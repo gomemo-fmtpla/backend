@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Backgro
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.commons.pydantic_to_json import metadata_to_dict
-from app.database.db import get_db
+from app.database.db import get_db, DatabaseSingleton
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate, NoteUpdate
 from app.usecases.auth_guard import auth_guard
 from app.usecases.generation.chat_generation import generate_chat
@@ -65,7 +65,13 @@ async def generate_youtube_summary(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
+    # Use a new session for the event generator to prevent keeping the main request session open
+    session_maker = DatabaseSingleton.getInstance().SessionLocal
+    user_id = current_user.id
+    
     async def event_generator():
+        # Create a new db session for this specific generator
+        db_session = session_maker()
         try:
             print(f"Starting transcription for URL: {youtube_url}")
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
@@ -114,8 +120,8 @@ async def generate_youtube_summary(
                 )
                 
                 new_note = add_note(
-                    db=db,
-                    user_id=current_user.id,
+                    db=db_session,
+                    user_id=user_id,
                     folder_id=None,
                     note_create=note_create
                 )
@@ -129,8 +135,8 @@ async def generate_youtube_summary(
                 )
 
                 note_metadata = add_metadata(
-                    db=db,
-                    user_id=current_user.id,
+                    db=db_session,
+                    user_id=user_id,
                     note_id=new_note.id,
                     metadata_create=metadata_create
                 )
@@ -147,6 +153,9 @@ async def generate_youtube_summary(
             print(f"Process failed with error: {str(e)}")
             print(f"Full error traceback: {traceback.format_exc()}")
             yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed on generate_youtube_summary: {str(e)}'})}\n\n"
+        finally:
+            # Pastikan session ditutup
+            db_session.close()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
