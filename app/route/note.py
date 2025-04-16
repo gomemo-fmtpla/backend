@@ -4,6 +4,7 @@ import os
 import time
 import traceback
 import uuid
+import asyncio
 
 from datetime import datetime
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks
@@ -37,6 +38,9 @@ from app.usecases.storage.audio_store import delete_object, extract_audio_filena
 from redis import Redis
 from app.config import settings
 
+# Import Celery tasks
+from app.tasks.youtube_tasks import process_youtube_video, process_youtube_video_2
+from app.tasks.audio_tasks import process_audio, process_audio_whisper_openai, process_audio_salad
 
 # Initialize Redis client
 redis_client = Redis.from_url(settings.REDIS_URL)
@@ -65,98 +69,52 @@ async def generate_youtube_summary(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
-    # Use a new session for the event generator to prevent keeping the main request session open
-    session_maker = DatabaseSingleton.getInstance().SessionLocal
-    user_id = current_user.id
+    # Menginisialisasi task_id yang unik
+    task_id = str(uuid.uuid4())
+    
+    # Inisialisasi status tugas di Redis
+    redis_client.set(f"task_status:{task_id}", "QUEUED")
+    redis_client.expire(f"task_status:{task_id}", 3600)  # 1 jam expiry
+    
+    # Memulai tugas Celery secara async
+    task = process_youtube_video.delay(youtube_url, lang, current_user.id)
     
     async def event_generator():
-        # Create a new db session for this specific generator
-        db_session = session_maker()
         try:
-            print(f"Starting transcription for URL: {youtube_url}")
+            # Beritahu client kalau tugas sudah antri
+            yield f"data: {json.dumps({'status': 'queued', 'task_id': task_id})}\n\n"
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
-
-            # Add timing information
-            start_time = time.time()
-            transcript_response = generate_transcript(youtube_url)
-            transcription_time = time.time() - start_time
-            print(f"Transcription took {transcription_time:.2f} seconds")
-            print(f"Transcript response: {transcript_response}")
             
-            if not transcript_response['success']:
-                error_details = transcript_response.get('error', {})
-                print(f"Transcription failed with error: {error_details}")
-                yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to transcribe the YouTube video: {error_details}'})}\n\n"
-                return
-            
-            transcript = transcript_response['data']['transcript']
-            print(f"Transcript length: {len(transcript)} characters")
-
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
-
-            start_time = time.time()
-            summary_response = generate_summary(transcript, lang)
-            summary_time = time.time() - start_time
-            print(f"Summary generation took {summary_time:.2f} seconds")
-            
-            if not summary_response['success']:
-                error_details = summary_response.get('error', {})
-                print(f"Summary generation failed with error: {error_details}")
-                yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary: {error_details}'})}\n\n"
-                return
-
-            summary_data = summary_response['data']
-            print("Summary generated successfully")
-
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
-
-            try:
-                note_create = NoteCreate(
-                    title=summary_data['title'],
-                    summary=summary_data['markdown'],
-                    transcript_text=transcript,
-                    language=summary_data['lang'],
-                    content_url=youtube_url,
-                )
+            # Poll status tugas sampai selesai atau gagal
+            while not task.ready():
+                # Cek status di Redis
+                status = redis_client.get(f"task_status:{task_id}")
+                if status:
+                    status = status.decode('utf-8')
+                    if status == "TRANSCRIBING":
+                        yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
+                    elif status == "SUMMARIZING":
+                        yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
                 
-                new_note = add_note(
-                    db=db_session,
-                    user_id=user_id,
-                    folder_id=None,
-                    note_create=note_create
-                )
-                print(f"Note created successfully with ID: {new_note.id}")
-
-                metadata_create = NoteMetadataCreate(
-                    title=summary_data['title'],
-                    content_category=summary_data['content_category'],
-                    emoji_representation=summary_data['emoji_representation'],
-                    date_created=datetime.now()
-                )
-
-                note_metadata = add_metadata(
-                    db=db_session,
-                    user_id=user_id,
-                    note_id=new_note.id,
-                    metadata_create=metadata_create
-                )
-                print("Metadata added successfully")
-
-                note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
-                yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
-
-            except Exception as db_error:
-                print(f"Database operation failed: {str(db_error)}")
-                raise
-
+                # Tunggu sedikit sebelum check lagi
+                await asyncio.sleep(1)
+            
+            # Tugas sudah selesai, dapatkan hasilnya
+            result = task.get()
+            
+            if result['status'] == 'complete':
+                # Jika berhasil, kembalikan metadata note
+                yield f"data: {json.dumps({'status': 'complete', 'message': result['message']})}\n\n"
+            else:
+                # Jika gagal, kembalikan error message
+                yield f"data: {json.dumps({'status': 'error', 'message': result['message']})}\n\n"
+                
         except Exception as e:
-            print(f"Process failed with error: {str(e)}")
-            print(f"Full error traceback: {traceback.format_exc()}")
-            yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed on generate_youtube_summary: {str(e)}'})}\n\n"
-        finally:
-            # Pastikan session ditutup
-            db_session.close()
-
+            # Log error dan kembalikan error message
+            print(f"Error in event generator: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed: {str(e)}'})}\n\n"
+    
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @router.get("/generate/youtube/2/")
@@ -167,65 +125,42 @@ async def generate_youtube_summary_2(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
+    # Menginisialisasi task_id yang unik
+    task_id = str(uuid.uuid4())
+    
+    # Inisialisasi status tugas di Redis
+    redis_client.set(f"task_status:{task_id}", "QUEUED")
+    redis_client.expire(f"task_status:{task_id}", 3600)  # 1 jam expiry
+    
+    # Memulai tugas Celery secara async
+    task = process_youtube_video_2.delay(youtube_url, transcript, lang, current_user.id)
+    
     async def event_generator():
         try:
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Transcribing audio...'})}\n\n"
             
-            transcription_response = generate_youtube_transcript(youtube_url=youtube_url)
-            if not transcription_response['success']:
-                print(transcription_response["error"])
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n"
-                return
+            # Poll status tugas sampai selesai atau gagal
+            while not task.ready():
+                await asyncio.sleep(1)
             
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+            # Tugas sudah selesai, dapatkan hasilnya
+            result = task.get()
             
-            transcript = transcription_response["data"]["transcript"]
-        
-            summary_response = generate_summary(transcript, lang)
-            if not summary_response['success']:
-                print(summary_response["error"])
-                yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
-                return
-
-            summary_data = summary_response['data']
-
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
-
-            note_create = NoteCreate(
-                title=summary_data['title'],
-                summary=summary_data['markdown'],
-                transcript_text=transcript,
-                language=summary_data['lang'],
-                content_url=youtube_url,
-            )
-            new_note = add_note(
-                db=db,
-                user_id=current_user.id,
-                folder_id=None,  # Or specify a folder_id if needed
-                note_create=note_create
-            )
-
-            metadata_create = NoteMetadataCreate(
-                title=summary_data['title'],
-                content_category=summary_data['content_category'],
-                emoji_representation=summary_data['emoji_representation'],
-                date_created=datetime.now()
-            )
-
-            note_metadata = add_metadata(
-                db=db,
-                user_id=current_user.id,
-                note_id=new_note.id,
-                metadata_create=metadata_create
-            )
-
-            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
-
-            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
-
+            if result['status'] == 'progress':
+                yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+            elif result['status'] == 'complete':
+                # Jika berhasil, kembalikan metadata note
+                yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
+                yield f"data: {json.dumps({'status': 'complete', 'message': result['message']})}\n\n"
+            else:
+                # Jika gagal, kembalikan error message
+                yield f"data: {json.dumps({'status': 'error', 'message': result['message']})}\n\n"
+                
         except Exception as e:
+            # Log error dan kembalikan error message
+            print(f"Error in event generator: {str(e)}")
             yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed on generate_youtube_summary_2: {str(e)}'})}\n\n"
-
+    
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
@@ -264,77 +199,52 @@ async def generate_audio_summary(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
+    # Inisialisasi task_id yang unik
+    task_id = str(uuid.uuid4())
+    
+    # Inisialisasi status tugas di Redis
+    redis_client.set(f"task_status:{task_id}", "QUEUED")
+    redis_client.expire(f"task_status:{task_id}", 3600)  # 1 jam expiry
+    
+    # Memulai tugas Celery secara async
+    task = process_audio.delay(audio_url, lang, context, current_user.id)
+    
     async def event_generator():
-        task_id = None
         try:
-            # Generate unique task ID
-            task_id = str(uuid.uuid4())
-            redis_client.set(f"task_status:{task_id}", "QUEUED")
-            
+            # Beritahu client kalau tugas sudah antri
             yield f"data: {json.dumps({'status': 'queued', 'task_id': task_id})}\n\n"
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
             
-            # Process transcription
-            transcription_response = transcribe_audio(audio_url=audio_url)
-            if not transcription_response['success']:
-                raise Exception(transcription_response['error'])
+            # Poll status tugas sampai selesai atau gagal
+            while not task.ready():
+                # Cek status di Redis
+                status = redis_client.get(f"task_status:{task_id}")
+                if status:
+                    status = status.decode('utf-8')
+                    if status == "TRANSCRIBING":
+                        yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
+                    elif status == "SUMMARIZING":
+                        yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+                
+                # Tunggu sedikit sebelum check lagi
+                await asyncio.sleep(1)
             
-            redis_client.set(f"task_status:{task_id}", "TRANSCRIBING")
+            # Tugas sudah selesai, dapatkan hasilnya
+            result = task.get()
             
-            transcript = transcription_response["data"]["transcript"]
-            
-            # Generate summary
-            redis_client.set(f"task_status:{task_id}", "SUMMARIZING")
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
-            
-            summary_response = generate_summary(transcript, lang, context=context)
-            if not summary_response['success']:
-                raise Exception(summary_response['error'])
-            
-            summary_data = summary_response['data']
-            
-            # Create note
-            note_create = NoteCreate(
-                title=summary_data['title'],
-                summary=summary_data['markdown'],
-                transcript_text=transcript,
-                language=summary_data['lang'],
-                content_url=audio_url,
-            )
-            
-            new_note = add_note(db=db, user_id=current_user.id, 
-                              folder_id=None, note_create=note_create)
-            
-            # Add metadata for the note, similar to YouTube endpoint
-            metadata_create = NoteMetadataCreate(
-                title=summary_data['title'],
-                content_category=summary_data['content_category'],
-                emoji_representation=summary_data['emoji_representation'],
-                date_created=datetime.now()
-            )
-            
-            note_metadata = add_metadata(
-                db=db,
-                user_id=current_user.id,
-                note_id=new_note.id,
-                metadata_create=metadata_create
-            )
-            
-            # Convert metadata to JSON and include in the response
-            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
-            
-            redis_client.set(f"task_status:{task_id}", "COMPLETE")
-            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
-
+            if result['status'] == 'complete':
+                # Jika berhasil, kembalikan metadata note
+                yield f"data: {json.dumps({'status': 'complete', 'message': result['message']})}\n\n"
+            else:
+                # Jika gagal, kembalikan error message
+                yield f"data: {json.dumps({'status': 'error', 'message': result['message']})}\n\n"
+                
         except Exception as e:
-            if task_id:
-                redis_client.set(f"task_status:{task_id}", "FAILED")
+            # Log error dan kembalikan error message
+            print(f"Error in event generator: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
             yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
-        finally:
-            if task_id:
-                # Cleanup task status after 1 hour
-                redis_client.expire(f"task_status:{task_id}", 3600)
-
+    
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @router.get("/generate/audio/2/")
@@ -345,69 +255,42 @@ async def generate_audio_summary_2(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
+    # Menginisialisasi task_id yang unik
+    task_id = str(uuid.uuid4())
+    
+    # Inisialisasi status tugas di Redis
+    redis_client.set(f"task_status:{task_id}", "QUEUED")
+    redis_client.expire(f"task_status:{task_id}", 3600)  # 1 jam expiry
+    
+    # Memulai tugas Celery secara async
+    task = process_audio_whisper_openai.delay(audio_url, lang, context, current_user.id)
+    
     async def event_generator():
         try:
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Transcribing audio...'})}\n\n"
             
-            transcription_response = transcribe_audio_whisper_openai(audio_url=audio_url)
-            if not transcription_response['success']:
-                print(transcription_response["error"])
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n"
-                return
+            # Poll status tugas sampai selesai atau gagal
+            while not task.ready():
+                await asyncio.sleep(1)
             
-            print("transcription_response: ", transcription_response)
+            # Tugas sudah selesai, dapatkan hasilnya
+            result = task.get()
             
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
-            
-            transcript = transcription_response["data"]["transcript"]
-            
-            summary_response = generate_summary(transcript, lang, context=context)
-            if not summary_response['success']:
-                print(summary_response["error"])
-                yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
-                return
-            
-            summary_data = summary_response['data']
-
-            # Step 3: Create a new note
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
-            
-            note_create = NoteCreate(
-                title=summary_data['title'],
-                summary=summary_data['markdown'],
-                transcript_text=transcript,
-                language=summary_data['lang'],
-                content_url=audio_url,
-            )
-            new_note = add_note(
-                db=db,
-                user_id=current_user.id,
-                folder_id=None,
-                note_create=note_create
-            )
-
-            metadata_create = NoteMetadataCreate(
-                title=summary_data['title'],
-                content_category=summary_data['content_category'],
-                emoji_representation=summary_data['emoji_representation'],
-                date_created=datetime.now()
-            )
-            note_metadata = add_metadata(
-                db=db,
-                user_id=current_user.id,
-                note_id=new_note.id,
-                metadata_create=metadata_create
-            )
-
-            # Convert metadata to JSON
-            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
-
-            # Final status with the note metadata JSON
-            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
-
+            if result['status'] == 'progress':
+                yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+            elif result['status'] == 'complete':
+                # Jika berhasil, kembalikan metadata note
+                yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
+                yield f"data: {json.dumps({'status': 'complete', 'message': result['message']})}\n\n"
+            else:
+                # Jika gagal, kembalikan error message
+                yield f"data: {json.dumps({'status': 'error', 'message': result['message']})}\n\n"
+                
         except Exception as e:
+            # Log error dan kembalikan error message
+            print(f"Error in event generator: {str(e)}")
             yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed on generate_audio_summary_2: {str(e)}'})}\n\n"
-
+    
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @router.get("/generate/audio/3/")
@@ -418,74 +301,43 @@ async def generate_audio_summary_3(
     current_user: User = Depends(auth_guard),
     db: Session = Depends(get_db)
 ):
+    # Menginisialisasi task_id yang unik
+    task_id = str(uuid.uuid4())
+    
+    # Inisialisasi status tugas di Redis
+    redis_client.set(f"task_status:{task_id}", "QUEUED")
+    redis_client.expire(f"task_status:{task_id}", 3600)  # 1 jam expiry
+    
+    # Memulai tugas Celery secara async
+    task = process_audio_salad.delay(audio_url, lang, context, current_user.id)
+    
     async def event_generator():
-        temp_audio_file = None  # Initialize temp_audio_file to None
         try:
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Transcribing audio...'})}\n\n"
             
-            transcription_response = transcribe_audio_salad(audio_url=audio_url)
-            if not transcription_response['success']:
-                print(transcription_response["error"])
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to transcribe audio'})}\n\n"
-                return
+            # Poll status tugas sampai selesai atau gagal
+            while not task.ready():
+                await asyncio.sleep(1)
             
-            # print("transcription_response: ", transcription_response)
+            # Tugas sudah selesai, dapatkan hasilnya
+            result = task.get()
             
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
-            
-            transcript = transcription_response["data"]["transcript"]
-            
-            summary_response = generate_summary(transcript, lang, context=context)
-            if not summary_response['success']:
-                print(summary_response["error"])
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Failed to generate summary'})}\n\n"
-                return
-            
-            summary_data = summary_response['data']
-
-            # Step 3: Create a new note
-            yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
-            
-            note_create = NoteCreate(
-                title=summary_data['title'],
-                summary=summary_data['markdown'],
-                transcript_text=transcript,
-                language=summary_data['lang'],
-                content_url=audio_url,
-            )
-            new_note = add_note(
-                db=db,
-                user_id=current_user.id,
-                folder_id=None,
-                note_create=note_create
-            )
-
-            metadata_create = NoteMetadataCreate(
-                title=summary_data['title'],
-                content_category=summary_data['content_category'],
-                emoji_representation=summary_data['emoji_representation'],
-                date_created=datetime.now()
-            )
-            note_metadata = add_metadata(
-                db=db,
-                user_id=current_user.id,
-                note_id=new_note.id,
-                metadata_create=metadata_create
-            )
-
-            # Convert metadata to JSON
-            note_metadata_json = json.dumps(metadata_to_dict(note_metadata))
-
-            # Final status with the note metadata JSON
-            yield f"data: {json.dumps({'status': 'complete', 'message': note_metadata_json})}\n\n"
-
+            if result['status'] == 'progress':
+                yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+            elif result['status'] == 'complete':
+                # Jika berhasil, kembalikan metadata note
+                yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
+                yield f"data: {json.dumps({'status': 'complete', 'message': result['message']})}\n\n"
+            else:
+                # Jika gagal, kembalikan error message
+                yield f"data: {json.dumps({'status': 'error', 'message': result['message']})}\n\n"
+                
         except Exception as e:
-            print(f"Error: {str(e)}")
+            # Log error dan kembalikan error message
+            print(f"Error in event generator: {str(e)}")
             print(f"Traceback: {traceback.format_exc()}")
             yield f"data: {json.dumps({'status': 'error', 'message': f'Process failed on generate_audio_summary_3: {str(e)}'})}\n\n"
-            if temp_audio_file and os.path.exists(temp_audio_file):
-                os.remove(temp_audio_file)
-
+    
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @router.get("/generate/context/")

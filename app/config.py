@@ -1,8 +1,17 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Settings(BaseSettings):
-    # Redis settings
-    REDIS_URL: str = "redis://redis:6380/0"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/gomemo")
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "SECRET")
+    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+    JWT_EXPIRES_IN_MIN: int = int(os.getenv("JWT_EXPIRES_IN_MIN", "60"))
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6380/0")
+    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6380/0")
+    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6380/0")
     
     # App settings
     APP_NAME: str = "GoMemo"
@@ -20,9 +29,11 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     
     # MinIO settings
-    MINIO_ENDPOINTS: str
-    MINIO_ACCESS_KEY: str
-    MINIO_SECRET_KEY: str
+    MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+    MINIO_ACCESS_KEY: str = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+    MINIO_SECRET_KEY: str = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+    MINIO_SECURE: bool = os.getenv("MINIO_SECURE", "False") == "True"
+    MINIO_BUCKET_NAME: str = os.getenv("MINIO_BUCKET_NAME", "gomemo")
     
     # Proxy settings
     PROXY_URL: str = "http://localhost:3128"

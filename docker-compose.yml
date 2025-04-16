@@ -9,10 +9,25 @@ services:
       - ./key.json:/app/key.json
     depends_on:
       - redis
+    environment:
+      - REDIS_URL=redis://redis:6380/0
+
   redis:
     image: redis:latest
     command: redis-server --port 6380
     ports:
       - '6380:6380'
+
+  celery_worker:
+    build: .
+    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=50
+    volumes:
+      - ./key.json:/app/key.json
+    depends_on:
+      - redis
+      - api
+    environment:
+      - REDIS_URL=redis://redis:6380/0
+
 volumes:
   postgres_data:
