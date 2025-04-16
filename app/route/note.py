@@ -85,22 +85,33 @@ async def generate_youtube_summary(
             yield f"data: {json.dumps({'status': 'queued', 'task_id': task_id})}\n\n"
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
             
+            # Flags to track progress messages
+            transcript_sent = False
+            summary_sent = False
+            
             # Poll status tugas sampai selesai atau gagal
             while not task.ready():
-                # Cek status di Redis
-                status = redis_client.get(f"task_status:{task_id}")
-                if status:
-                    status = status.decode('utf-8')
-                    if status == "TRANSCRIBING":
+                # Cek status di Redis untuk pembaruan pesan
+                try:
+                    # Cek status transcribing
+                    if not transcript_sent:
                         yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
-                    elif status == "SUMMARIZING":
+                        transcript_sent = True
+                    
+                    # Setelah beberapa saat, kirim pesan summarizing
+                    await asyncio.sleep(5)
+                    if not summary_sent and task.status == 'STARTED':
                         yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+                        summary_sent = True
+                except Exception as e:
+                    print(f"Error during polling: {str(e)}")
                 
-                # Tunggu sedikit sebelum check lagi
-                await asyncio.sleep(1)
+                # Tunggu sebelum check lagi
+                await asyncio.sleep(2)
             
             # Tugas sudah selesai, dapatkan hasilnya
             result = task.get()
+            print(f"Task result: {result}")
             
             if result['status'] == 'complete':
                 # Jika berhasil, kembalikan metadata note
@@ -208,6 +219,7 @@ async def generate_audio_summary(
     
     # Memulai tugas Celery secara async
     task = process_audio.delay(audio_url, lang, context, current_user.id)
+    print(f"Created audio task with id: {task.id}")
     
     async def event_generator():
         try:
@@ -215,24 +227,35 @@ async def generate_audio_summary(
             yield f"data: {json.dumps({'status': 'queued', 'task_id': task_id})}\n\n"
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
             
+            # Flags to track progress messages
+            transcript_sent = False
+            summary_sent = False
+            
             # Poll status tugas sampai selesai atau gagal
             while not task.ready():
-                # Cek status di Redis
-                status = redis_client.get(f"task_status:{task_id}")
-                if status:
-                    status = status.decode('utf-8')
-                    if status == "TRANSCRIBING":
+                try:
+                    # Cek status transcribing
+                    if not transcript_sent:
                         yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating transcript...'})}\n\n"
-                    elif status == "SUMMARIZING":
+                        transcript_sent = True
+                    
+                    # Setelah beberapa saat, kirim pesan summarizing
+                    await asyncio.sleep(10)
+                    if not summary_sent and task.status == 'STARTED':
                         yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating summary...'})}\n\n"
+                        summary_sent = True
+                except Exception as e:
+                    print(f"Error during polling: {str(e)}")
                 
-                # Tunggu sedikit sebelum check lagi
-                await asyncio.sleep(1)
+                # Tunggu sebelum check lagi
+                await asyncio.sleep(2)
             
             # Tugas sudah selesai, dapatkan hasilnya
             result = task.get()
+            print(f"Audio task result: {result}")
             
             if result['status'] == 'complete':
+                yield f"data: {json.dumps({'status': 'progress', 'message': 'Creating note...'})}\n\n"
                 # Jika berhasil, kembalikan metadata note
                 yield f"data: {json.dumps({'status': 'complete', 'message': result['message']})}\n\n"
             else:

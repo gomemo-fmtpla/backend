@@ -1,4 +1,5 @@
 import os
+import time
 from celery import Celery
 from app.config import settings
 
@@ -19,7 +20,15 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     task_track_started=True,
     task_time_limit=3600,  # 1 jam time limit
+    broker_connection_retry=True,
+    broker_connection_retry_on_startup=True,
+    broker_connection_max_retries=20,
+    broker_connection_timeout=30,
 )
+
+# Mencoba memastikan koneksi dengan Redis berhasil
+print(f"Celery using broker URL: {settings.CELERY_BROKER_URL}")
+print(f"Celery using result backend: {settings.CELERY_RESULT_BACKEND}")
 
 # Import tugas-tugas
 from app.tasks import youtube_tasks, audio_tasks 

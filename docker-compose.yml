@@ -1,6 +1,17 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis:latest
+    command: redis-server --port 6380
+    ports:
+      - '6380:6380'
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-p', '6380', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build: .
     ports:
@@ -8,15 +19,12 @@ services:
     volumes:
       - ./key.json:/app/key.json
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     environment:
       - REDIS_URL=redis://redis:6380/0
-
-  redis:
-    image: redis:latest
-    command: redis-server --port 6380
-    ports:
-      - '6380:6380'
+      - CELERY_BROKER_URL=redis://redis:6380/0
+      - CELERY_RESULT_BACKEND=redis://redis:6380/0
 
   celery_worker:
     build: .
@@ -24,10 +32,12 @@ services:
     volumes:
       - ./key.json:/app/key.json
     depends_on:
-      - redis
-      - api
+      redis:
+        condition: service_healthy
     environment:
       - REDIS_URL=redis://redis:6380/0
+      - CELERY_BROKER_URL=redis://redis:6380/0
+      - CELERY_RESULT_BACKEND=redis://redis:6380/0
 
 volumes:
   postgres_data:
