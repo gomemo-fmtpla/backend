@@ -10,7 +10,7 @@ from app.database.db import DatabaseSingleton
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate
 from app.usecases.note.note import add_note, add_metadata
 from app.commons.pydantic_to_json import metadata_to_dict
-from app.usecases.generation.audio_transcribe_extraction import transcribe_audio, transcribe_audio_whisper_openai, transcribe_audio_salad
+from app.usecases.generation.audio_transcribe_extraction import transcribe_audio, transcribe_audio_whisper_openai, transcribe_audio_salad, transcribe_audio_deepinfra
 from app.usecases.generation.summary_generation import generate_summary
 
 from redis import Redis
@@ -24,7 +24,7 @@ redis_client = Redis.from_url(settings.REDIS_URL)
 def process_audio(self, audio_url, lang, context, user_id):
     # Log task start
     task_id = self.request.id
-    print(f"Starting Audio task {task_id} for URL: {audio_url}")
+    print(f"!!!Starting process_audio task {task_id} for URL: {audio_url}")
     
     # Buat session baru untuk tugas ini
     db_session = DatabaseSingleton.getInstance().SessionLocal()
@@ -37,7 +37,7 @@ def process_audio(self, audio_url, lang, context, user_id):
         print(f"Task {task_id}: Starting transcription")
         redis_client.set(f"task:{task_id}:status", "TRANSCRIBING")
         start_time = time.time()
-        transcription_response = transcribe_audio(audio_url=audio_url)
+        transcription_response = transcribe_audio_deepinfra(audio_url=audio_url)
         transcription_time = time.time() - start_time
         print(f"Task {task_id}: Transcription took {transcription_time:.2f} seconds")
         

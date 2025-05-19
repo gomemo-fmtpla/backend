@@ -5,6 +5,13 @@ from openai import OpenAI
 import os
 import requests
 import json
+import sys
+
+from redis import Redis
+from app.config import settings
+
+# Initialize Redis client
+redis_client = Redis.from_url(settings.REDIS_URL)
 
 load_env()
 client = OpenAI(
@@ -186,6 +193,76 @@ def transcribe_audio_salad(audio_url: str) -> dict:
         }        
 
     except Exception as e:
+        print("Error when transcribing content", e)
+        return {
+            "success": False,
+            "error": {
+                "type": "TranslationError",
+                "message": str(e)
+            }
+        }
+        
+def transcribe_audio_deepinfra(audio_url: str) -> dict:
+    try:
+        print(f"!!!start transcribe_audio_deepinfra")
+        sys.stdout.flush()
+        
+        if not audio_url.startswith("https://"):
+            audio_url = "https://" + audio_url
+        
+        print(f"audio_url: {audio_url}")
+        sys.stdout.flush()
+            
+        # Download the audio file
+        response = requests.get(audio_url, stream=True)
+        response.raise_for_status()
+        
+        # Save the audio file temporarily
+        filename = audio_url.split("/")[-1].split("?")[0]
+        temp_audio_file = filename
+        
+        with open(temp_audio_file, "wb") as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    file.write(chunk)
+        
+        # Create transcription request to DeepInfra
+        deepinfra_url = "https://api.deepinfra.com/v1/inference/openai/whisper-large-v3-turbo"
+        headers = {
+            "Authorization": f"bearer {os.getenv('DEEPINFRA_API_KEY')}"
+        }
+        
+        # Send the file for transcription
+        with open(temp_audio_file, 'rb') as audio_file:
+            files = {'audio': (filename, audio_file, 'audio/mpeg')}
+            response = requests.post(deepinfra_url, headers=headers, files=files)
+        
+        response.raise_for_status()
+        result = response.json()
+        
+        print(f"!!!result: {result}")
+        sys.stdout.flush()
+        
+        # Clean up the temporary file
+        if os.path.exists(temp_audio_file):
+            os.remove(temp_audio_file)
+        
+        # Extract the transcript from the response
+        transcription = result.get("text", "")
+        
+        return {
+            "success": True,
+            "data": {
+                "transcript": transcription
+            },
+            "error": None
+        }        
+
+    except Exception as e:
+        # Clean up in case of an error
+        if 'temp_audio_file' in locals() and os.path.exists(temp_audio_file):
+            os.remove(temp_audio_file)
+            
         print("Error when transcribing content", e)
         return {
             "success": False,

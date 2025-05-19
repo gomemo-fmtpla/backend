@@ -1,3 +1,5 @@
+# uvicorn app.main:app --host 0.0.0.0 --port 3657
+
 from app.tasks.cleanup import init_cleanup_scheduler
 from fastapi import FastAPI
 from app.commons.environment_manager import load_env
@@ -23,6 +25,7 @@ app.include_router(folder_router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True, debug=True)
 
 
