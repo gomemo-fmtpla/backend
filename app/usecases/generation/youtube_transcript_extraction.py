@@ -83,12 +83,13 @@ def generate_transcript_with_deepinfra(youtube_url):
         }
     
     out_file = None
+    temp_dir = None
     try:
         print(f"!!!start generate_transcript_with_deepinfra")
         sys.stdout.flush()
         
-        # Download the audio from YouTube
-        yt = YouTube(youtube_url, on_progress_callback=on_progress, use_oauth=True, allow_oauth_cache=True)
+        # Download the audio from YouTube without OAuth
+        yt = YouTube(youtube_url, on_progress_callback=on_progress, use_oauth=False, allow_oauth_cache=False)
         print(f"Video Title: {yt.title}")
         sys.stdout.flush()
         
@@ -135,7 +136,7 @@ def generate_transcript_with_deepinfra(youtube_url):
         # Clean up the temporary files
         if os.path.exists(out_file):
             os.remove(out_file)
-        if os.path.exists(temp_dir):
+        if temp_dir and os.path.exists(temp_dir):
             os.rmdir(temp_dir)
         
         # Extract the transcript from the response
@@ -162,7 +163,7 @@ def generate_transcript_with_deepinfra(youtube_url):
                 pass
             
         # Try to remove temp directory if it exists
-        if 'temp_dir' in locals() and os.path.exists(temp_dir):
+        if temp_dir and os.path.exists(temp_dir):
             try:
                 os.rmdir(temp_dir)
             except:
@@ -172,6 +173,10 @@ def generate_transcript_with_deepinfra(youtube_url):
         print(f"Traceback: {traceback.format_exc()}")
         sys.stdout.flush()
         
+        # If we encounter OAuth error, try with yt-dlp as a fallback
+        if "EOF when reading a line" in str(e) or "OAuth" in str(e):
+            return transcribe_with_ytdlp(youtube_url, video_id)
+        
         return {
             "success": False,
             "error": {
@@ -179,7 +184,111 @@ def generate_transcript_with_deepinfra(youtube_url):
                 "message": str(e)
             }
         }
+
+def transcribe_with_ytdlp(youtube_url, video_id):
+    """Fallback method using yt-dlp instead of pytubefix"""
+    import subprocess
     
+    temp_dir = None
+    out_file = None
+    try:
+        print("Falling back to yt-dlp for downloading...")
+        sys.stdout.flush()
+        
+        # Create temp directory
+        temp_dir = tempfile.mkdtemp()
+        out_file = os.path.join(temp_dir, f"{video_id}.mp3")
+        
+        # Use yt-dlp to download audio
+        cmd = [
+            "yt-dlp", 
+            "-x", 
+            "--audio-format", "mp3",
+            "-o", out_file,
+            youtube_url
+        ]
+        
+        process = subprocess.run(cmd, capture_output=True, text=True)
+        if process.returncode != 0:
+            raise Exception(f"yt-dlp download failed: {process.stderr}")
+            
+        print(f"yt-dlp download complete: {out_file}")
+        sys.stdout.flush()
+        
+        # Verify file exists and has content
+        if not os.path.exists(out_file):
+            raise FileNotFoundError(f"Downloaded file not found at {out_file}")
+            
+        file_size = os.path.getsize(out_file)
+        print(f"File size: {file_size} bytes")
+        if file_size == 0:
+            raise ValueError("Downloaded file is empty")
+            
+        # Create transcription request to DeepInfra
+        deepinfra_url = "https://api.deepinfra.com/v1/inference/openai/whisper-large-v3-turbo"
+        headers = {
+            "Authorization": f"bearer {os.getenv('DEEPINFRA_API_KEY')}"
+        }
+        
+        # Send the file for transcription
+        with open(out_file, 'rb') as audio_file:
+            file_content = audio_file.read()
+            
+        files = {'audio': (f"{video_id}.mp3", file_content, 'audio/mpeg')}
+        response = requests.post(deepinfra_url, headers=headers, files=files, timeout=300)
+        
+        response.raise_for_status()
+        result = response.json()
+        
+        print(f"!!!result: {result}")
+        sys.stdout.flush()
+        
+        # Clean up
+        if os.path.exists(out_file):
+            os.remove(out_file)
+        if temp_dir and os.path.exists(temp_dir):
+            os.rmdir(temp_dir)
+            
+        # Extract transcript
+        transcription = result.get("text", "")
+        
+        if not transcription:
+            raise ValueError("No transcription returned from DeepInfra API")
+            
+        return {
+            "success": True,
+            "data": {
+                "video_id": video_id,
+                "transcript": transcription
+            },
+            "error": None
+        }
+            
+    except Exception as e:
+        # Clean up in case of an error
+        if out_file and os.path.exists(out_file):
+            try:
+                os.remove(out_file)
+            except:
+                pass
+            
+        if temp_dir and os.path.exists(temp_dir):
+            try:
+                os.rmdir(temp_dir)
+            except:
+                pass
+                
+        print(f"Error in yt-dlp fallback: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        sys.stdout.flush()
+        
+        return {
+            "success": False,
+            "error": {
+                "type": "TranscriptionError",
+                "message": f"Both download methods failed: {str(e)}"
+            }
+        }
         
 def generate_youtube_transcript(youtube_url):
     video_id = get_video_id(youtube_url)
