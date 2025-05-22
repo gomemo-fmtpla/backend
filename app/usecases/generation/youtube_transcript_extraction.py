@@ -2,13 +2,13 @@ import json
 import os
 import ssl
 import sys
+import traceback
 import requests
 import tempfile
 from openai import OpenAI
 from pytubefix import YouTube
 from pytubefix.captions import Caption
 from pytubefix.cli import on_progress
-import requests
 from urllib.parse import urlparse, parse_qs
 from app.commons.environment_manager import load_env
 
@@ -94,12 +94,23 @@ def generate_transcript_with_deepinfra(youtube_url):
         
         ys = yt.streams.get_audio_only()
         
-        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp:
-            out_file = temp.name
+        # Create a temporary file with a more reliable approach
+        temp_dir = tempfile.mkdtemp()
+        out_file = os.path.join(temp_dir, f"{video_id}.mp3")
         
-        ys.download(filename=out_file)
-        print(f"Downloaded to temporary file: {out_file}")
+        print(f"Downloading to: {out_file}")
+        ys.download(output_path=temp_dir, filename=f"{video_id}.mp3")
+        print(f"Download complete")
         sys.stdout.flush()
+        
+        # Verify file exists and has content
+        if not os.path.exists(out_file):
+            raise FileNotFoundError(f"Downloaded file not found at {out_file}")
+            
+        file_size = os.path.getsize(out_file)
+        print(f"File size: {file_size} bytes")
+        if file_size == 0:
+            raise ValueError("Downloaded file is empty")
         
         # Create transcription request to DeepInfra
         deepinfra_url = "https://api.deepinfra.com/v1/inference/openai/whisper-large-v3-turbo"
@@ -107,23 +118,31 @@ def generate_transcript_with_deepinfra(youtube_url):
             "Authorization": f"bearer {os.getenv('DEEPINFRA_API_KEY')}"
         }
         
-        # Send the file for transcription
+        # Send the file for transcription with improved error handling
         with open(out_file, 'rb') as audio_file:
-            files = {'audio': (os.path.basename(out_file), audio_file, 'audio/mpeg')}
-            response = requests.post(deepinfra_url, headers=headers, files=files)
+            file_content = audio_file.read()  # Read file content into memory
+            
+        files = {'audio': (f"{video_id}.mp3", file_content, 'audio/mpeg')}
+        response = requests.post(deepinfra_url, headers=headers, files=files, timeout=300)
         
+        # Check response
         response.raise_for_status()
         result = response.json()
         
         print(f"!!!result: {result}")
         sys.stdout.flush()
         
-        # Clean up the temporary file
+        # Clean up the temporary files
         if os.path.exists(out_file):
             os.remove(out_file)
+        if os.path.exists(temp_dir):
+            os.rmdir(temp_dir)
         
         # Extract the transcript from the response
         transcription = result.get("text", "")
+        
+        if not transcription:
+            raise ValueError("No transcription returned from DeepInfra API")
         
         return {
             "success": True,
@@ -142,7 +161,17 @@ def generate_transcript_with_deepinfra(youtube_url):
             except:
                 pass
             
-        print(f"Error on generate_transcript_with_deepinfra: {str(e)}.")
+        # Try to remove temp directory if it exists
+        if 'temp_dir' in locals() and os.path.exists(temp_dir):
+            try:
+                os.rmdir(temp_dir)
+            except:
+                pass
+            
+        print(f"Error on generate_transcript_with_deepinfra: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        sys.stdout.flush()
+        
         return {
             "success": False,
             "error": {
