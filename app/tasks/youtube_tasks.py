@@ -8,7 +8,7 @@ from app.database.db import DatabaseSingleton
 from app.database.schemas.note import NoteCreate, NoteMetadataCreate
 from app.usecases.note.note import add_note, add_metadata
 from app.commons.pydantic_to_json import metadata_to_dict
-from app.usecases.generation.youtube_transcript_extraction import generate_transcript, generate_youtube_transcript
+from app.usecases.generation.youtube_transcript_extraction import generate_transcript, generate_transcript_with_deepinfra, generate_youtube_transcript
 from app.usecases.generation.summary_generation import generate_summary
 
 from redis import Redis
@@ -36,7 +36,7 @@ def process_youtube_video(self, youtube_url, lang, user_id):
         print(f"Task {task_id}: Starting transcription")
         redis_client.set(f"task:{task_id}:status", "TRANSCRIBING")
         start_time = time.time()
-        transcript_response = generate_transcript(youtube_url)
+        transcript_response = generate_transcript_with_deepinfra(youtube_url)
         transcription_time = time.time() - start_time
         print(f"Task {task_id}: Transcription took {transcription_time:.2f} seconds")
         

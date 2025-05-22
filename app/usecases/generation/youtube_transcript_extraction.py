@@ -1,6 +1,8 @@
 import json
 import os
 import ssl
+import sys
+import requests
 import tempfile
 from openai import OpenAI
 from pytubefix import YouTube
@@ -68,6 +70,87 @@ def generate_transcript(youtube_url):
                     "message": str(e)
                 }
             }
+
+def generate_transcript_with_deepinfra(youtube_url):
+    video_id = get_video_id(youtube_url)
+    if not video_id:
+        return {
+            "success": False,
+            "error": {
+                "type": "InvalidURL",
+                "message": "The provided YouTube URL is invalid."
+            }
+        }
+    
+    out_file = None
+    try:
+        print(f"!!!start generate_transcript_with_deepinfra")
+        sys.stdout.flush()
+        
+        # Download the audio from YouTube
+        yt = YouTube(youtube_url, on_progress_callback=on_progress, use_oauth=True, allow_oauth_cache=True)
+        print(f"Video Title: {yt.title}")
+        sys.stdout.flush()
+        
+        ys = yt.streams.get_audio_only()
+        
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp:
+            out_file = temp.name
+        
+        ys.download(filename=out_file)
+        print(f"Downloaded to temporary file: {out_file}")
+        sys.stdout.flush()
+        
+        # Create transcription request to DeepInfra
+        deepinfra_url = "https://api.deepinfra.com/v1/inference/openai/whisper-large-v3-turbo"
+        headers = {
+            "Authorization": f"bearer {os.getenv('DEEPINFRA_API_KEY')}"
+        }
+        
+        # Send the file for transcription
+        with open(out_file, 'rb') as audio_file:
+            files = {'audio': (os.path.basename(out_file), audio_file, 'audio/mpeg')}
+            response = requests.post(deepinfra_url, headers=headers, files=files)
+        
+        response.raise_for_status()
+        result = response.json()
+        
+        print(f"!!!result: {result}")
+        sys.stdout.flush()
+        
+        # Clean up the temporary file
+        if os.path.exists(out_file):
+            os.remove(out_file)
+        
+        # Extract the transcript from the response
+        transcription = result.get("text", "")
+        
+        return {
+            "success": True,
+            "data": {
+                "video_id": video_id,
+                "transcript": transcription
+            },
+            "error": None
+        }
+
+    except Exception as e:
+        # Clean up in case of an error
+        if out_file and os.path.exists(out_file):
+            try:
+                os.remove(out_file)
+            except:
+                pass
+            
+        print(f"Error on generate_transcript_with_deepinfra: {str(e)}.")
+        return {
+            "success": False,
+            "error": {
+                "type": "TranscriptionError",
+                "message": str(e)
+            }
+        }
+    
         
 def generate_youtube_transcript(youtube_url):
     video_id = get_video_id(youtube_url)
