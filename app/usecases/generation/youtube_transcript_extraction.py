@@ -28,7 +28,7 @@ def get_video_id(url):
         return query_params.get('v', [None])[0]
     return None
 
-def generate_transcript(youtube_url):
+def generate_transcript(youtube_url, lang):
     video_id = get_video_id(youtube_url)
     if not video_id:
         return {
@@ -43,7 +43,8 @@ def generate_transcript(youtube_url):
         url = "https://whisperx-green-smoke-3819.fly.dev/transcribe/"
         
         payload = json.dumps({
-            "url": youtube_url
+            "url": youtube_url,
+            "language": lang
         })
         headers = {
             'Content-Type': 'application/json'

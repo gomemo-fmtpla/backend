@@ -36,7 +36,7 @@ def process_youtube_video(self, youtube_url, lang, user_id):
         print(f"Task {task_id}: Starting transcription")
         redis_client.set(f"task:{task_id}:status", "TRANSCRIBING")
         start_time = time.time()
-        transcript_response = generate_transcript(youtube_url)
+        transcript_response = generate_transcript(youtube_url, lang)
         transcription_time = time.time() - start_time
         print(f"Task {task_id}: Transcription took {transcription_time:.2f} seconds")
         
