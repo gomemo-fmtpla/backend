@@ -202,7 +202,7 @@ def transcribe_audio_salad(audio_url: str) -> dict:
             }
         }
         
-def transcribe_audio_deepinfra(audio_url: str) -> dict:
+def transcribe_audio_deepinfra(audio_url: str, lang: str = None, task: str = "transcribe", initial_prompt: str = None, temperature: float = 0) -> dict:
     try:
         print(f"!!!start transcribe_audio_deepinfra")
         sys.stdout.flush()
@@ -232,10 +232,22 @@ def transcribe_audio_deepinfra(audio_url: str) -> dict:
             "Authorization": f"bearer {os.getenv('DEEPINFRA_API_KEY')}"
         }
         
+        # Prepare request parameters
+        data = {
+            "task": task,
+            "temperature": temperature
+        }
+        
+        # Add optional parameters if provided
+        if lang:
+            data["language"] = lang
+        if initial_prompt:
+            data["initial_prompt"] = initial_prompt
+        
         # Send the file for transcription
         with open(temp_audio_file, 'rb') as audio_file:
             files = {'audio': (filename, audio_file, 'audio/mpeg')}
-            response = requests.post(deepinfra_url, headers=headers, files=files)
+            response = requests.post(deepinfra_url, headers=headers, files=files, data=data)
         
         response.raise_for_status()
         result = response.json()

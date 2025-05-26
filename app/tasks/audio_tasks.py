@@ -37,7 +37,7 @@ def process_audio(self, audio_url, lang, context, user_id):
         print(f"Task {task_id}: Starting transcription")
         redis_client.set(f"task:{task_id}:status", "TRANSCRIBING")
         start_time = time.time()
-        transcription_response = transcribe_audio_deepinfra(audio_url=audio_url)
+        transcription_response = transcribe_audio_deepinfra(audio_url=audio_url, lang=lang)
         transcription_time = time.time() - start_time
         print(f"Task {task_id}: Transcription took {transcription_time:.2f} seconds")
         
