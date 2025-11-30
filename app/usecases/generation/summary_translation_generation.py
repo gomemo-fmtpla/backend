@@ -1,16 +1,17 @@
 from app.commons.environment_manager import load_env
-from openai import OpenAI
+from openai import AsyncOpenAI
 import os
 
 load_env()
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
+client = AsyncOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    timeout=60.0
 )
 
-def translate_summary(summary: str, lang: str) -> dict:
+async def translate_summary(summary: str, lang: str) -> dict:
     """Translate a summary from the provided summary using OpenAI."""
     try:
-        translation_response = client.chat.completions.create(
+        translation_response = await client.chat.completions.create(
             messages=[
                 {
                     "role": "user",
