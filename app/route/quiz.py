@@ -24,7 +24,7 @@ async def generate_quiz(request: QuizRequest):
     # print(transcript)
     
     # transcript = request.transcript
-    response = generate_quizzes(transcript)
+    response = await generate_quizzes(transcript)
     if not response['success']:
         raise HTTPException(status_code=500, detail=response['error'])
 

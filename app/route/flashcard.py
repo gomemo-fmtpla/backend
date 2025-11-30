@@ -23,7 +23,7 @@ async def generate_flashcard(request: FlashcardRequest):
     # print(transcript)
     
     # transcript = request.transcript
-    response = generate_flashcards(transcript)
+    response = await generate_flashcards(transcript)
     if not response['success']:
         raise HTTPException(status_code=500, detail=response['error'])
 

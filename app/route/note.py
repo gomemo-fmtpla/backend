@@ -547,7 +547,7 @@ async def create_flashcards(
     if note.flashcards :
         note.flashcards.clear()
 
-    flashcard_data = generate_flashcards(note.summary, note.language)
+    flashcard_data = await generate_flashcards(note.summary, note.language)
     if not flashcard_data['success'] :
        print(flashcard_data['error'])
        raise HTTPException(status_code=500, detail="Server fail")
@@ -570,7 +570,7 @@ async def create_quizzes(
     if note.quizzes :
         note.quizzes.clear()
     
-    quiz_data = generate_quizzes(note.summary, note.language)
+    quiz_data = await generate_quizzes(note.summary, note.language)
     if not quiz_data['success'] :
        print(quiz_data['error'])
        raise HTTPException(status_code=500, detail="Server fail")

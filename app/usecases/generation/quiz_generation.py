@@ -1,19 +1,18 @@
 from app.commons.environment_manager import load_env
-from openai import OpenAI
+from openai import AsyncOpenAI
 import os
 import json
 
 load_env()
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
+client = AsyncOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    timeout=60.0
 )
 
-import json
-
-def generate_quizzes(transcript: str, language: str = "") -> dict:
+async def generate_quizzes(transcript: str, language: str = "") -> dict:
     """Generate a set of quizzes with multiple-choice questions and answer indices from the provided transcript using OpenAI."""
     try:
-        quizzes_text = client.chat.completions.create(
+        quizzes_text = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
