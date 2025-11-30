@@ -1,0 +1,900 @@
+{
+	"info": {
+		"_postman_id": "gomemo-backend-api",
+		"name": "GoMemo Backend API",
+		"description": "Complete API collection for GoMemo Backend with all endpoints, headers, and authentication",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "Authenticate User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user/auth/",
+							"host": ["{{base_url}}"],
+							"path": ["user", "auth", ""]
+						},
+						"description": "Authenticate or create a new user. Returns user information including id, username, email, subscription_plan, and subscription_end_date."
+					}
+				},
+				{
+					"name": "Get Subscription",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/user/subscription/",
+							"host": ["{{base_url}}"],
+							"path": ["user", "subscription", ""]
+						},
+						"description": "Get the current user's subscription status. Requires authentication."
+					}
+				},
+				{
+					"name": "Update Subscription",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"subscription_plan\": \"premium\",\n    \"receipt\": \"transaction_receipt_string\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user/subscription/",
+							"host": ["{{base_url}}"],
+							"path": ["user", "subscription", ""]
+						},
+						"description": "Update user subscription plan with transaction receipt. Requires authentication."
+					}
+				},
+				{
+					"name": "Update Onboarding Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/user/update_onboarding_data/?primary_goal=learning&user_type=student&study_format=online&usage_frequency=daily&focus_topic=programming&learning_style=visual",
+							"host": ["{{base_url}}"],
+							"path": ["user", "update_onboarding_data", ""],
+							"query": [
+								{
+									"key": "primary_goal",
+									"value": "learning"
+								},
+								{
+									"key": "user_type",
+									"value": "student"
+								},
+								{
+									"key": "study_format",
+									"value": "online"
+								},
+								{
+									"key": "usage_frequency",
+									"value": "daily"
+								},
+								{
+									"key": "focus_topic",
+									"value": "programming"
+								},
+								{
+									"key": "learning_style",
+									"value": "visual"
+								}
+							]
+						},
+						"description": "Update user onboarding information. Requires authentication."
+					}
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/user/delete/",
+							"host": ["{{base_url}}"],
+							"path": ["user", "delete", ""]
+						},
+						"description": "Delete user account and all associated notes, folders, and files. Requires authentication."
+					}
+				}
+			]
+		},
+		{
+			"name": "Notes",
+			"item": [
+				{
+					"name": "Get All Notes",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/",
+							"host": ["{{base_url}}"],
+							"path": ["notes", ""]
+						},
+						"description": "Get all notes for the authenticated user. Requires authentication."
+					}
+				},
+				{
+					"name": "Get Note by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/{{note_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "{{note_id}}"]
+						},
+						"description": "Get a specific note by ID. Requires authentication."
+					}
+				},
+				{
+					"name": "Update Note",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Note Title\",\n    \"summary\": \"Updated summary content\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/notes/{{note_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "{{note_id}}"]
+						},
+						"description": "Update a note's title and/or summary. Requires authentication."
+					}
+				},
+				{
+					"name": "Delete Note",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/{{note_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "{{note_id}}"]
+						},
+						"description": "Delete a note and its associated metadata and files. Requires authentication."
+					}
+				},
+				{
+					"name": "Store Audio File",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "audio_file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/notes/audio/store",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "audio", "store"]
+						},
+						"description": "Upload and store an audio file. Returns the stored URL. Requires authentication."
+					}
+				},
+				{
+					"name": "Generate YouTube Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/generate/youtube/?youtube_url=https://www.youtube.com/watch?v=example&lang=en",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "generate", "youtube", ""],
+							"query": [
+								{
+									"key": "youtube_url",
+									"value": "https://www.youtube.com/watch?v=example"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Optional language code"
+								}
+							]
+						},
+						"description": "Generate a summary from a YouTube video URL. Returns Server-Sent Events (SSE) stream. Requires authentication."
+					}
+				},
+				{
+					"name": "Generate YouTube Summary v2",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/generate/youtube/2/?youtube_url=https://www.youtube.com/watch?v=example&transcript=pre_transcribed_text&lang=en",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "generate", "youtube", "2", ""],
+							"query": [
+								{
+									"key": "youtube_url",
+									"value": "https://www.youtube.com/watch?v=example"
+								},
+								{
+									"key": "transcript",
+									"value": "pre_transcribed_text"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Optional language code"
+								}
+							]
+						},
+						"description": "Generate a summary from YouTube video with pre-transcribed text. Returns SSE stream. Requires authentication."
+					}
+				},
+				{
+					"name": "Generate Audio Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/generate/audio?audio_url=https://example.com/audio.mp3&lang=en&context=optional_context",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "generate", "audio"],
+							"query": [
+								{
+									"key": "audio_url",
+									"value": "https://example.com/audio.mp3"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Optional language code"
+								},
+								{
+									"key": "context",
+									"value": "optional_context",
+									"description": "Optional context for transcription"
+								}
+							]
+						},
+						"description": "Generate a summary from an audio file URL. Returns SSE stream. Requires authentication."
+					}
+				},
+				{
+					"name": "Generate Audio Summary v2",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/generate/audio/2/?audio_url=https://example.com/audio.mp3&lang=en&context=optional_context",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "generate", "audio", "2", ""],
+							"query": [
+								{
+									"key": "audio_url",
+									"value": "https://example.com/audio.mp3"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Optional language code"
+								},
+								{
+									"key": "context",
+									"value": "optional_context",
+									"description": "Optional context for transcription"
+								}
+							]
+						},
+						"description": "Generate audio summary using Whisper OpenAI. Returns SSE stream. Requires authentication."
+					}
+				},
+				{
+					"name": "Generate Audio Summary v3",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/generate/audio/3/?audio_url=https://example.com/audio.mp3&lang=en&context=optional_context",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "generate", "audio", "3", ""],
+							"query": [
+								{
+									"key": "audio_url",
+									"value": "https://example.com/audio.mp3"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Optional language code"
+								},
+								{
+									"key": "context",
+									"value": "optional_context",
+									"description": "Optional context for transcription"
+								}
+							]
+						},
+						"description": "Generate audio summary using Salad. Returns SSE stream. Requires authentication."
+					}
+				},
+				{
+					"name": "Generate Context Note",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/generate/context/?context=Your text content here&lang=en",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "generate", "context", ""],
+							"query": [
+								{
+									"key": "context",
+									"value": "Your text content here"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Optional language code"
+								}
+							]
+						},
+						"description": "Generate a note from text context. Returns SSE stream. Requires authentication."
+					}
+				},
+				{
+					"name": "Translate Note",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/translate/{{note_id}}?target_language=fr",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "translate", "{{note_id}}"],
+							"query": [
+								{
+									"key": "target_language",
+									"value": "fr"
+								}
+							]
+						},
+						"description": "Translate a note to a target language and create a new translated note. Returns SSE stream. Requires authentication."
+					}
+				},
+				{
+					"name": "Generate Flashcards",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/flashcard/{{note_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "flashcard", "{{note_id}}"]
+						},
+						"description": "Generate flashcards for a note. Requires authentication."
+					}
+				},
+				{
+					"name": "Generate Quizzes",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/quizzes/{{note_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "quizzes", "{{note_id}}"]
+						},
+						"description": "Generate quizzes for a note. Requires authentication."
+					}
+				},
+				{
+					"name": "Move Note to Folder",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/{{note_id}}/move-folder?new_folder_id=1",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "{{note_id}}", "move-folder"],
+							"query": [
+								{
+									"key": "new_folder_id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Move a note to a different folder. Requires authentication."
+					}
+				},
+				{
+					"name": "Remove Note from Folder",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/{{note_id}}/remove-folder",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "{{note_id}}", "remove-folder"]
+						},
+						"description": "Remove a note from its current folder. Requires authentication."
+					}
+				},
+				{
+					"name": "Get Folder by Note ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/{{note_id}}/folder/",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "{{note_id}}", "folder", ""]
+						},
+						"description": "Get the folder containing a specific note. Requires authentication."
+					}
+				},
+				{
+					"name": "Export Note",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/export-note/?note_id=1",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "export-note", ""],
+							"query": [
+								{
+									"key": "note_id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Export a note and get a shareable URL. Requires authentication."
+					}
+				},
+				{
+					"name": "Import Note",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/import-note/?old_note_id=1&old_user_username=olduser",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "import-note", ""],
+							"query": [
+								{
+									"key": "old_note_id",
+									"value": "1"
+								},
+								{
+									"key": "old_user_username",
+									"value": "olduser"
+								}
+							]
+						},
+						"description": "Import a note from another user. Requires authentication."
+					}
+				},
+				{
+					"name": "Chat with Note",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notes/chat/?note_id=1&chat_input=What is this note about?",
+							"host": ["{{base_url}}"],
+							"path": ["notes", "chat", ""],
+							"query": [
+								{
+									"key": "note_id",
+									"value": "1"
+								},
+								{
+									"key": "chat_input",
+									"value": "What is this note about?"
+								}
+							]
+						},
+						"description": "Generate a chat response based on note content. Requires authentication."
+					}
+				}
+			]
+		},
+		{
+			"name": "Folders",
+			"item": [
+				{
+					"name": "Get All Folders",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/folders/",
+							"host": ["{{base_url}}"],
+							"path": ["folders", ""]
+						},
+						"description": "Get all folders for the authenticated user with note counts. Requires authentication."
+					}
+				},
+				{
+					"name": "Get Folder by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/folders/{{folder_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["folders", "{{folder_id}}"]
+						},
+						"description": "Get a specific folder by ID. Requires authentication."
+					}
+				},
+				{
+					"name": "Create Folder",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/folders/?folder_name=My New Folder",
+							"host": ["{{base_url}}"],
+							"path": ["folders", ""],
+							"query": [
+								{
+									"key": "folder_name",
+									"value": "My New Folder"
+								}
+							]
+						},
+						"description": "Create a new folder. Requires authentication."
+					}
+				},
+				{
+					"name": "Update Folder",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/folders/{{folder_id}}?folder_name=Updated Folder Name",
+							"host": ["{{base_url}}"],
+							"path": ["folders", "{{folder_id}}"],
+							"query": [
+								{
+									"key": "folder_name",
+									"value": "Updated Folder Name"
+								}
+							]
+						},
+						"description": "Update folder name. Requires authentication."
+					}
+				},
+				{
+					"name": "Delete Folder",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "api-key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "user",
+								"value": "{{username}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/folders/{{folder_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["folders", "{{folder_id}}"]
+						},
+						"description": "Delete a folder and all its contents. Requires authentication."
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "api_key",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "note_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "folder_id",
+			"value": "1",
+			"type": "string"
+		}
+	]
+}
+
