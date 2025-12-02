@@ -482,7 +482,8 @@ async def translate_note_endpoint(
             yield f"data: {json.dumps({'status': 'progress', 'message': 'Generating translated summary...'})}\n\n"
             
             # new_public_url = copy_file_from_url(public_url=note.content_url)
-            summary_response = await asyncio.to_thread(generate_summary, translated_text, target_language)
+            # Pass parent note's summary as context to maintain same context
+            summary_response = await asyncio.to_thread(generate_summary, translated_text, target_language, note.summary)
             if not summary_response['success']:
                 yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to generate summary'})}\n\n"
                 return
