@@ -58,9 +58,13 @@ def add_metadata(
     metadata_create: NoteMetadataCreate
 ) -> NoteMetadata:
     try:
+        note = db.query(Note).filter(Note.id == note_id).first()
+        folder_id = note.folder_id if note else None
+        
         new_metadata = NoteMetadata(
             user_id=user_id,
             note_id=note_id,
+            folder_id=folder_id,
             **metadata_create.dict()
         )
         db.add(new_metadata)
@@ -168,6 +172,11 @@ def move_note_to_folder_usecase(db: Session, note_id: int, new_folder_id: Option
     try:
         note = db.query(Note).filter(Note.id == note_id).first()
         note.folder_id = new_folder_id
+        
+        note_metadata = db.query(NoteMetadata).filter(NoteMetadata.note_id == note_id).first()
+        if note_metadata:
+            note_metadata.folder_id = new_folder_id
+        
         db.commit()
         db.refresh(note)
         return note
@@ -179,6 +188,11 @@ def remove_note_folder_usecase(db: Session, note_id: int) -> Note:
     try:
         note = db.query(Note).filter(Note.id == note_id).first()
         note.folder_id = None
+        
+        note_metadata = db.query(NoteMetadata).filter(NoteMetadata.note_id == note_id).first()
+        if note_metadata:
+            note_metadata.folder_id = None
+        
         db.commit()
         db.refresh(note)
         return note
