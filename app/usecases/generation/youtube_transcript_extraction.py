@@ -12,6 +12,11 @@ from pytubefix.captions import Caption
 from pytubefix.cli import on_progress
 from urllib.parse import urlparse, parse_qs
 from app.commons.environment_manager import load_env
+from app.config import settings
+from app.usecases.generation.whisperx_client import (
+    get_whisperx_transcribe_url,
+    post_whisperx_transcription,
+)
 
 ssl._create_default_https_context = ssl._create_stdlib_context
 load_env()
@@ -40,29 +45,28 @@ def generate_transcript(youtube_url, lang):
         }
     
     try:
-        url = "https://whisperx-green-smoke-3819.fly.dev/transcribe/"
-        
-        payload = json.dumps({
+        payload = {
             "url": youtube_url,
-            "language": lang
-        })
-        headers = {
-            'Content-Type': 'application/json'
+            "language": lang,
         }
-        
-        response = requests.request("POST", url, headers=headers, data=payload, timeout=3600)
-        
-        if response.status_code == 200:
-            transcription_data = response.json()
-            print(f"transcription_data: {transcription_data}")
-            return {
-                "success": True,
-                "data": {
-                    "video_id": video_id,
-                    "transcript": transcription_data["transcription"]
-                },
-                "error": None
-            }
+        result = post_whisperx_transcription(
+            get_whisperx_transcribe_url(),
+            payload,
+            timeout=3600,
+        )
+        if not result["success"]:
+            return result
+
+        transcription = result["data"]["transcription"]
+        print(f"transcription_data: {transcription[:200]}")
+        return {
+            "success": True,
+            "data": {
+                "video_id": video_id,
+                "transcript": transcription,
+            },
+            "error": None,
+        }
     except Exception as e:
         print(f"Error on generate_transcript: {str(e)}.")
         return {

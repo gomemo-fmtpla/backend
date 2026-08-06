@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # External services
     GOOGLE_APPLICATION_CREDENTIALS: str = "key.json"
     OPENAI_API_KEY: str
+    WHISPERX_BASE_URL: str = os.getenv(
+        "WHISPERX_BASE_URL",
+        "https://gomemo-whisperx.minutyshowpro.workers.dev",
+    )
     
     # MinIO settings
     MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "localhost:9000")

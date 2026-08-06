@@ -9,6 +9,10 @@ import sys
 
 from redis import Redis
 from app.config import settings
+from app.usecases.generation.whisperx_client import (
+    get_whisperx_transcribe_audio_url,
+    post_whisperx_transcription,
+)
 
 # Initialize Redis client
 redis_client = Redis.from_url(settings.REDIS_URL)
@@ -23,40 +27,19 @@ def transcribe_audio(audio_url: str) -> dict:
     if not audio_url.startswith('https://'):
         audio_url = "https://" + audio_url
      
-    url = "https://whisperx-green-smoke-3819.fly.dev/transcribe-audio/"
-    payload = json.dumps({
-        "url": audio_url
-    })
-    headers = {
-        'Content-Type': 'application/json'
-    }
-    try:
-        response = requests.request("POST", url, headers=headers, data=payload)
-        if response.status_code == 200:
-            transcription_data = response.json()
-            return {
-                "success": True,
-                "data": {
-                    "transcript": transcription_data["transcription"]
-                },
-                "error": None
-            }
-        else:
-            return {
-                "success": False,
-                "error": {
-                    "type": "TranscriptionError",
-                    "message": "Failed to get transcription from the server."
-                }
-            }
-    except Exception as e:
+    result = post_whisperx_transcription(
+        get_whisperx_transcribe_audio_url(),
+        {"url": audio_url},
+    )
+    if result["success"]:
         return {
-            "success": False,
-            "error": {
-                "type": "TranscriptionError",
-                "message": str(e)
-            }
+            "success": True,
+            "data": {
+                "transcript": result["data"]["transcription"],
+            },
+            "error": None,
         }
+    return result
 
 def print_audio_info(file_path: str):
     """Print information about the audio file."""
