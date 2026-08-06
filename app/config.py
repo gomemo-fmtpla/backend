@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # External services
     GOOGLE_APPLICATION_CREDENTIALS: str = "key.json"
     OPENAI_API_KEY: str
+    SLACK_BOT_TOKEN: str = os.getenv("SLACK_BOT_TOKEN", "")
+    SLACK_HEALTH_CHANNEL_ID: str = os.getenv("SLACK_HEALTH_CHANNEL_ID", "C0BBCFEAZN1")
     WHISPERX_BASE_URL: str = os.getenv(
         "WHISPERX_BASE_URL",
         "https://gomemo-whisperx.minutyshowpro.workers.dev",

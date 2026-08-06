@@ -1,6 +1,7 @@
 # uvicorn app.main:app --host 0.0.0.0 --port 3657
 
 from app.tasks.cleanup import init_cleanup_scheduler
+from app.tasks.health_monitor import init_health_monitor_scheduler
 from fastapi import FastAPI
 from app.commons.environment_manager import load_env
 import os
@@ -16,6 +17,7 @@ app = FastAPI(title=os.getenv("APP_NAME"))
 @app.on_event("startup")
 async def startup_event():
     init_cleanup_scheduler()
+    init_health_monitor_scheduler()
 
 app.include_router(user_router)
 app.include_router(note_router)
